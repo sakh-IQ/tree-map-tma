@@ -352,7 +352,7 @@
 
 <script>
 // ЗАМЕНИТЕ НА ВАШ НОВЫЙ URL!!!
-const API_URL = 'https://script.google.com/macros/s/AKfycbxWOFDhSaGNFyL6hdoCRsEQwt8YGgfjgNhaswPVEPaGhLcaAFNh_D8rbNwbkP1novM/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxYX616xjJRm5nYJX2eXKzIzQOYWO7iZ3heki5BedPmO0FLjRm2kWiFHy_lSpztFuA/exec';
 
 const tg = window.Telegram?.WebApp || {};
 const userId = tg.initDataUnsafe?.user?.id || 0;
@@ -630,20 +630,27 @@ function addPoint(lat, lng, type, comment) {
     debugLog(`📦 Данные для отправки: ${JSON.stringify(data, null, 2)}`);
     debugLog(`📡 Отправляю POST-запрос на ${API_URL}...`);
     
+    // Попробуем сначала обычный fetch
     fetch(API_URL, {
       method: 'POST',
-      body: JSON.stringify(data),
+      mode: 'cors', // Явно указываем CORS
       headers: {
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(data)
     })
     .then(response => {
       debugLog(`📡 Статус ответа: ${response.status} ${response.statusText}`);
       debugLog(`📡 Headers: ${JSON.stringify([...response.headers])}`);
       
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       // Читаем ответ как текст сначала для диагностики
       return response.text().then(text => {
-        debugLog(`📄 Сырой ответ: ${text}`);
+        debugLog(`📄 Сырой ответ: ${text.substring(0, 500)}...`);
         try {
           const json = JSON.parse(text);
           return json;
@@ -659,7 +666,7 @@ function addPoint(lat, lng, type, comment) {
       if (result.result === 'success') {
         debugLog(`🎉 Успех! ID: ${result.id}`);
         alert(`Спасибо! Отметка "${type}" добавлена. ID: ${result.id}`);
-        setTimeout(() => loadData(), 1000); // Небольшая задержка перед обновлением
+        setTimeout(() => loadData(), 1000);
       } else if (result.error) {
         debugLog(`❌ Ошибка от сервера: ${result.error}`);
         alert('Ошибка сервера: ' + result.error);
@@ -671,7 +678,10 @@ function addPoint(lat, lng, type, comment) {
     .catch(error => {
       debugLog(`❌ Ошибка fetch: ${error.message}`);
       debugLog(`❌ Stack trace: ${error.stack}`);
-      alert('Ошибка соединения: ' + error.message);
+      
+      // Если POST не работает, попробуем через GET как в оригинале
+      debugLog(`🔄 POST не сработал, пробуем GET...`);
+      tryGetMethod(lat, lng, type, comment);
     });
     
   } catch (error) {
@@ -679,6 +689,52 @@ function addPoint(lat, lng, type, comment) {
     debugLog(`❌ Stack trace: ${error.stack}`);
     alert('Ошибка выполнения: ' + error.message);
   }
+}
+
+function tryGetMethod(lat, lng, type, comment) {
+  debugLog(`🔄 Пробуем метод GET...`);
+  
+  const params = new URLSearchParams({
+    action: 'add',
+    user_id: userId,
+    user_name: userName,
+    lat: lat,
+    lng: lng,
+    type: type,
+    comment: comment
+  });
+  
+  const getUrl = API_URL + '?' + params.toString();
+  debugLog(`📡 GET URL: ${getUrl.substring(0, 100)}...`);
+  
+  fetch(getUrl, {
+    method: 'GET',
+    mode: 'cors'
+  })
+  .then(response => {
+    debugLog(`📡 GET статус: ${response.status} ${response.statusText}`);
+    return response.text();
+  })
+  .then(text => {
+    debugLog(`📄 GET ответ: ${text.substring(0, 500)}...`);
+    try {
+      const result = JSON.parse(text);
+      if (result.result === 'success') {
+        debugLog(`🎉 GET успех! ID: ${result.id}`);
+        alert(`Спасибо! Отметка "${type}" добавлена. ID: ${result.id}`);
+        setTimeout(() => loadData(), 1000);
+      } else {
+        alert('Ошибка GET: ' + (result.error || 'Неизвестная ошибка'));
+      }
+    } catch (e) {
+      debugLog(`❌ GET JSON ошибка: ${e.message}`);
+      alert('Ошибка парсинга GET ответа');
+    }
+  })
+  .catch(error => {
+    debugLog(`❌ GET ошибка: ${error.message}`);
+    alert('GET тоже не работает: ' + error.message);
+  });
 }
 
 function updateStatus(id, status) {
