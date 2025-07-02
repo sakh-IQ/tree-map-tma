@@ -262,7 +262,8 @@ map.on('click', function(e) {
 function addPoint(lat, lng, type, comment) {
   log('Добавляю точку...');
   
-  const data = {
+  // Используем GET-запрос с параметрами
+  const params = new URLSearchParams({
     action: 'add',
     user_id: userId,
     user_name: userName,
@@ -270,27 +271,21 @@ function addPoint(lat, lng, type, comment) {
     lng: lng,
     type: type,
     comment: comment
-  };
+  });
   
-  log('Данные: ' + JSON.stringify(data));
+  const url = API_URL + '?' + params.toString();
+  log('URL: ' + url.substring(0, 100) + '...');
   
-  fetch(API_URL, {
-    method: 'POST',
-    mode: 'cors',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data)
-  })
+  fetch(url)
   .then(response => {
     log(`POST статус: ${response.status}`);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
-    return response.text(); // Сначала получаем как текст
+    return response.text();
   })
   .then(text => {
-    log('Ответ сервера: ' + text);
+    log('Ответ: ' + text.substring(0, 50) + '...');
     try {
       const result = JSON.parse(text);
       if (result.result === 'success') {
@@ -300,13 +295,13 @@ function addPoint(lat, lng, type, comment) {
         alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
       }
     } catch (e) {
-      log('Ошибка парсинга JSON: ' + e.message);
+      log('Ошибка JSON: ' + e.message);
       alert('Сервер вернул некорректный ответ');
     }
   })
   .catch(error => {
-    log('Ошибка POST: ' + error.message);
-    alert('Ошибка при добавлении точки: ' + error.message);
+    log('Ошибка: ' + error.message);
+    alert('Ошибка при добавлении: ' + error.message);
   });
 }
 
@@ -316,18 +311,13 @@ function updateStatus(id, status) {
     return;
   }
   
-  fetch(API_URL, {
-    method: 'POST',
-    mode: 'cors',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      action: 'update',
-      id: id,
-      status: status
-    })
-  })
+  const params = new URLSearchParams({
+    action: 'update',
+    id: id,
+    status: status
+  });
+  
+  fetch(API_URL + '?' + params.toString())
   .then(response => response.json())
   .then(result => {
     if (result.result === 'updated') {
@@ -350,17 +340,12 @@ function deletePoint(id) {
   
   if (!confirm('Удалить точку?')) return;
   
-  fetch(API_URL, {
-    method: 'POST',
-    mode: 'cors',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      action: 'delete',
-      id: id
-    })
-  })
+  const params = new URLSearchParams({
+    action: 'delete',
+    id: id
+  });
+  
+  fetch(API_URL + '?' + params.toString())
   .then(response => response.json())
   .then(result => {
     if (result.result === 'deleted') {
