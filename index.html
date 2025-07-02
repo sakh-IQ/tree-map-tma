@@ -350,7 +350,7 @@
 
 <script>
 // ЗАМЕНИТЕ НА ВАШ URL!!!
-const API_URL = 'https://script.google.com/macros/s/AKfycbzAwD75ox4qFgddpxSuDGkgWArko-H_q9Ax5aL5efyeeMXaM94t3myLc9WoLOrMNis/exec/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzAwD75ox4qFgddpxSuDGkgWArko-H_q9Ax5aL5efyeeMXaM94t3myLc9WoLOrMNis/exec';
 
 const tg = window.Telegram?.WebApp || {};
 const userId = tg.initDataUnsafe?.user?.id || 0;
@@ -560,6 +560,12 @@ function selectTreeType(type) {
   
   debugLog(`📍 Используем координаты: ${currentClickCoords.lat}, ${currentClickCoords.lng}`);
   
+  // Проверяем все переменные
+  debugLog(`🔍 Проверка переменных:`);
+  debugLog(`- userId: ${userId} (тип: ${typeof userId})`);
+  debugLog(`- userName: ${userName} (тип: ${typeof userName})`);
+  debugLog(`- API_URL: ${API_URL ? 'есть' : 'нет'}`);
+  
   // Закрываем модальное окно
   closeTreeModal();
   
@@ -567,9 +573,23 @@ function selectTreeType(type) {
   const comment = prompt(`Комментарий к "${type}" (необязательно):`, "") || "";
   debugLog(`💬 Введен комментарий: "${comment}"`);
   
-  // Вызываем функцию добавления точки
-  debugLog(`🚀 Вызываю addPoint...`);
-  addPoint(currentClickCoords.lat, currentClickCoords.lng, type, comment);
+  // Сохраняем параметры в переменные для безопасности
+  const lat = currentClickCoords.lat;
+  const lng = currentClickCoords.lng;
+  
+  debugLog(`🚀 Готов вызвать addPoint с параметрами:`);
+  debugLog(`- lat: ${lat}, lng: ${lng}`);
+  debugLog(`- type: ${type}, comment: ${comment}`);
+  
+  // Добавим небольшую задержку и попробуем
+  setTimeout(() => {
+    debugLog(`⏰ Вызываю addPoint через setTimeout...`);
+    try {
+      addPoint(lat, lng, type, comment);
+    } catch (error) {
+      debugLog(`❌ Ошибка при вызове addPoint: ${error.message}`);
+    }
+  }, 100);
 }
 
 // Закрытие модального окна при клике вне его
@@ -580,12 +600,12 @@ document.getElementById('treeModal').addEventListener('click', function(e) {
 });
 
 function addPoint(lat, lng, type, comment) {
-  debugLog(`🌳 НАЧАЛО addPoint: ${type}`);
-  debugLog(`📍 Координаты в addPoint: ${lat}, ${lng}`);
-  debugLog(`👤 User ID: ${userId}, Name: ${userName}`);
+  debugLog(`🚨 addPoint ЗАПУЩЕНА! Параметры получены`);
+  debugLog(`🌳 Добавляю точку: ${type}`);
+  debugLog(`📍 Координаты: ${lat}, ${lng}`);
   
   try {
-    const params = new URLSearchParams({
+    const data = {
       action: 'add',
       user_id: userId,
       user_name: userName,
@@ -593,38 +613,32 @@ function addPoint(lat, lng, type, comment) {
       lng: lng,
       type: type,
       comment: comment
-    });
+    };
     
-    debugLog(`📦 Параметры созданы`);
+    debugLog(`📦 Данные подготовлены: ${JSON.stringify(data)}`);
+    debugLog(`📡 Отправляю POST-запрос...`);
     
-    const fullUrl = API_URL + '?' + params.toString();
-    debugLog(`🔗 URL готов: ${fullUrl.length} символов`);
-    
-    debugLog(`📡 Начинаю fetch запрос...`);
-    
-    fetch(fullUrl)
+    fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
     .then(response => {
       debugLog(`📡 Получен ответ со статусом: ${response.status}`);
-      return response.text();
+      return response.json();
     })
-    .then(text => {
-      debugLog(`📄 Получен текст: ${text.substring(0, 100)}...`);
+    .then(result => {
+      debugLog(`✅ Сервер ответил: ${JSON.stringify(result)}`);
       
-      try {
-        const result = JSON.parse(text);
-        debugLog(`✅ JSON распарсен успешно`);
-        
-        if (result.result === 'success') {
-          debugLog(`🎉 Успех! ID: ${result.id}`);
-          alert(`Спасибо! Отметка "${type}" добавлена. ID: ${result.id}`);
-          loadData();
-        } else {
-          debugLog(`❌ Ошибка от сервера: ${result.error}`);
-          alert('Ошибка при добавлении: ' + (result.error || 'Попробуйте еще раз'));
-        }
-      } catch (e) {
-        debugLog(`❌ Ошибка парсинга: ${e.message}`);
-        alert('Сервер вернул некорректный ответ');
+      if (result.result === 'success') {
+        debugLog(`🎉 Успех! ID: ${result.id}`);
+        alert(`Спасибо! Отметка "${type}" добавлена. ID: ${result.id}`);
+        loadData();
+      } else {
+        debugLog(`❌ Ошибка от сервера: ${result.error}`);
+        alert('Ошибка при добавлении: ' + (result.error || 'Попробуйте еще раз'));
       }
     })
     .catch(error => {
@@ -644,13 +658,17 @@ function updateStatus(id, status) {
     return;
   }
   
-  const params = new URLSearchParams({
-    action: 'update',
-    id: id,
-    status: status
-  });
-  
-  fetch(API_URL + '?' + params.toString())
+  fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'update',
+      id: id,
+      status: status
+    }),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
   .then(response => response.json())
   .then(result => {
     if (result.result === 'updated') {
@@ -673,12 +691,16 @@ function deletePoint(id) {
   
   if (!confirm('Вы уверены, что хотите удалить эту отметку?')) return;
   
-  const params = new URLSearchParams({
-    action: 'delete',
-    id: id
-  });
-  
-  fetch(API_URL + '?' + params.toString())
+  fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'delete',
+      id: id
+    }),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
   .then(response => response.json())
   .then(result => {
     if (result.result === 'deleted') {
@@ -703,12 +725,16 @@ function blockUser(targetUserId, userName) {
     return;
   }
   
-  const params = new URLSearchParams({
-    action: 'block_user',
-    target_user_id: targetUserId
-  });
-  
-  fetch(API_URL + '?' + params.toString())
+  fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'block_user',
+      target_user_id: targetUserId
+    }),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
   .then(response => response.json())
   .then(result => {
     if (result.result === 'blocked') {
