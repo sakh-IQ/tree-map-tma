@@ -410,11 +410,11 @@ debugLog(`Пользователь: ${userName} (ID: ${userId})`);
 debugLog(`API URL: ${API_URL.substring(0, 50)}...`);
 
 // Инициализация карты
-var map = L.map('map').setView([46.963983, 142.753996], 17);
+var map = L.map('map').setView([46.964071,142.754043], 17);
 
 var bounds = L.latLngBounds(
-  L.latLng(46.967751, 142.762874),
-  L.latLng(46.958148, 142.764091)
+  L.latLng(46.967556, 142.762746),
+  L.latLng(46.959268, 142.762271)
 );
 
 map.setMaxBounds(bounds);
@@ -516,38 +516,59 @@ function formatDate(dateStr) {
 
 // Клик по карте для добавления точки
 map.on('click', function(e) {
+  debugLog(`🖱️ Клик по карте: ${e.latlng.lat}, ${e.latlng.lng}`);
+  
   if (isBlocked) {
+    debugLog('❌ Пользователь заблокирован');
     alert('Ваш аккаунт заблокирован!');
     return;
   }
   
   if (!bounds.contains(e.latlng)) {
+    debugLog('❌ Клик вне границ парка');
     alert('Отметки можно ставить только в пределах парка!');
     return;
   }
   
   // Сохраняем координаты и показываем модальное окно
   currentClickCoords = e.latlng;
+  debugLog(`💾 Координаты сохранены: ${currentClickCoords.lat}, ${currentClickCoords.lng}`);
+  
+  debugLog('🎨 Показываю модальное окно');
   showTreeModal();
 });
 
 function showTreeModal() {
+  debugLog('📱 Открываю модальное окно');
   document.getElementById('treeModal').classList.add('show');
 }
 
 function closeTreeModal() {
+  debugLog('❌ Закрываю модальное окно');
   document.getElementById('treeModal').classList.remove('show');
   currentClickCoords = null;
 }
 
 function selectTreeType(type) {
-  if (!currentClickCoords) return;
+  debugLog(`🎯 Выбран тип: ${type}`);
   
+  if (!currentClickCoords) {
+    debugLog('❌ Нет сохраненных координат!');
+    alert('Ошибка: координаты не сохранены');
+    return;
+  }
+  
+  debugLog(`📍 Используем координаты: ${currentClickCoords.lat}, ${currentClickCoords.lng}`);
+  
+  // Закрываем модальное окно
   closeTreeModal();
   
   // Запрашиваем комментарий
   const comment = prompt(`Комментарий к "${type}" (необязательно):`, "") || "";
+  debugLog(`💬 Введен комментарий: "${comment}"`);
   
+  // Вызываем функцию добавления точки
+  debugLog(`🚀 Вызываю addPoint...`);
   addPoint(currentClickCoords.lat, currentClickCoords.lng, type, comment);
 }
 
