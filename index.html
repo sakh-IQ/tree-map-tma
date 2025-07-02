@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Карта заражённых деревьев</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <style>
+    html, body, #map {
+      height: 100%;
+      margin: 0;
+    }
+    .custom-popup {
+      font-size: 14px;
+    }
+    .popup-btn {
+      display: inline-block;
+      margin: 4px 2px;
+      padding: 4px 8px;
+      background: #007aff;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbwevaTqlAsTiWdrq2w25a6O8vqgTdVLo2n1aj8PUgt2QF4X4jmq5OjjUbDoOTVxRNo/exec';
+const tg = window.Telegram.WebApp;
+const userId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 0;
+
+// Центр твоего парка
+var map = L.map('map').setView([46.963983, 142.753996], 17);
+
+// Ограничение границ парка (BBox)
+var bounds = L.latLngBounds(
+  L.latLng(46.966238, 142.747308), // северо-запад (верхний левый угол)
+  L.latLng(46.961201, 142.760771)  // юго-восток (нижний правый угол)
+);
+
+map.setMaxBounds(bounds);
+
+map.on('drag', function() {
+  map.panInsideBounds(bounds, { animate: false });
+});
+
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+}).addTo(map);
+
+fetch(API_URL + '?user_id=' + userId)
+  .then(res => res.json())
+  .then(data => {
+    const points = data.points;
+    const isAdmin = data.isAdmin;
+
+    points.forEach(pt => {
+      const color = getColor(pt.status);
+      const marker = L.circleMarker([pt.lat, pt.lng], {
+        color: color,
+        radius: 8
+      }).addTo(map);
+
+      let popupContent = `<div class="custom-popup">
+        <b>Тип:</b> ${pt.type}<br/>
+        <b>Комментарий:</b> ${pt.comment}<br/>
+        <b>Статус:</b> ${pt.status}<br/>
+        <b>Добавил ID:</b> ${pt.user_id}<br/>`;
+
+      if (isAdmin) {
+        popupContent += `
+          <button class="popup-btn" onclick="updateStatus(${pt.id}, 'Подтверждено')">Подтвердить</button>
+          <button class="popup-btn" onclick="updateStatus(${pt.id}, 'Обработано')">Обработано</button>
+          <button class="popup-btn" onclick="deletePoint(${pt.id})">Удалить</button>
+        `;
+      }
+
+      popupContent += `</div>`;
+      marker.bindPopup(popupContent);
+    });
+  });
+
+function getColor(status) {
+  switch(status) {
+    case 'Подозрение': return 'yellow';
+    case 'Подтверждено': return 'red';
+    case 'Обработано': return 'green';
+    default: return 'gray';
+  }
+}
+
+map.on('click', function(e) {
+  const lat = e.latlng.lat;
+  const lng = e.latlng.lng;
+  const type = prompt("Тип (Заражено / Высохшее дерево):", "Заражено");
+  const comment = prompt("Комментарий:", "");
+
+  fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'add',
+      user_id: userId,
+      lat: lat,
+      lng: lng,
+      type: type,
+      comment: comment
+    }),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  }).then(res => res.json())
+    .then(data => {
+      alert('Метка добавлена! ID: ' + data.id);
+      location.reload();
+    });
+});
+
+function updateStatus(id, status) {
+  fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'update',
+      id: id,
+      status: status
+    }),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  }).then(res => res.json())
+    .then(data => {
+      alert('Статус обновлён!');
+      location.reload();
+    });
+}
+
+function deletePoint(id) {
+  fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'delete',
+      id: id
+    }),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  }).then(res => res.json())
+    .then(data => {
+      alert('Метка удалена!');
+      location.reload();
+    });
+}
+</script>
+
+</body>
+</html>
