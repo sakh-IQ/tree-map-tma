@@ -65,13 +65,16 @@
       position: fixed;
       top: 10px;
       right: 10px;
-      background: rgba(0,0,0,0.8);
+      background: rgba(255,0,0,0.9);
       color: white;
-      padding: 8px;
-      border-radius: 4px;
-      font-size: 11px;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 12px;
       z-index: 1000;
-      max-width: 200px;
+      max-width: 300px;
+      max-height: 200px;
+      overflow-y: auto;
+      border: 2px solid white;
     }
   </style>
 </head>
@@ -111,9 +114,15 @@ const userName = tg.initDataUnsafe?.user?.first_name || 'Гость';
 let isAdmin = false;
 let isBlocked = false;
 
+let debugMessages = [];
+
 function log(message) {
   console.log(message);
-  document.getElementById('debug').innerHTML = message;
+  debugMessages.push(new Date().toLocaleTimeString() + ': ' + message);
+  if (debugMessages.length > 10) {
+    debugMessages = debugMessages.slice(-10); // Оставляем только последние 10
+  }
+  document.getElementById('debug').innerHTML = debugMessages.join('<br>');
 }
 
 log(`User: ${userName} (${userId})`);
@@ -263,6 +272,8 @@ function addPoint(lat, lng, type, comment) {
     comment: comment
   };
   
+  log('Данные: ' + JSON.stringify(data));
+  
   fetch(API_URL, {
     method: 'POST',
     mode: 'cors',
@@ -271,20 +282,31 @@ function addPoint(lat, lng, type, comment) {
     },
     body: JSON.stringify(data)
   })
-  .then(response => response.json())
-  .then(result => {
-    log('Результат: ' + result.result);
-    
-    if (result.result === 'success') {
-      alert(`Точка добавлена! ID: ${result.id}`);
-      loadData(); // Перезагружаем
-    } else {
-      alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+  .then(response => {
+    log(`POST статус: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return response.text(); // Сначала получаем как текст
+  })
+  .then(text => {
+    log('Ответ сервера: ' + text);
+    try {
+      const result = JSON.parse(text);
+      if (result.result === 'success') {
+        alert(`Точка добавлена! ID: ${result.id}`);
+        loadData();
+      } else {
+        alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
+      }
+    } catch (e) {
+      log('Ошибка парсинга JSON: ' + e.message);
+      alert('Сервер вернул некорректный ответ');
     }
   })
   .catch(error => {
     log('Ошибка POST: ' + error.message);
-    alert('Ошибка при добавлении точки');
+    alert('Ошибка при добавлении точки: ' + error.message);
   });
 }
 
