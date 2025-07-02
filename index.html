@@ -423,8 +423,8 @@ debugLog(`User data: ${JSON.stringify(tg.initDataUnsafe?.user || 'нет дан�
 var map = L.map('map').setView([46.963983, 142.753996], 17);
 
 var bounds = L.latLngBounds(
-  L.latLng(46.966238, 142.747308),
-  L.latLng(46.961201, 142.760771)
+  L.latLng(46.967732, 142.761199),
+  L.latLng(46.959354, 142.762873)
 );
 
 map.setMaxBounds(bounds);
@@ -506,7 +506,7 @@ function displayPoints(points) {
 
     let popupContent = `<div class="custom-popup">
       <b>Тип:</b> ${pt.type}<br/>
-      <b>Комментарий:</b> ${pt.comment || 'Нет'}<br/>
+      <b>Комментарий (название дерева или иное):</b> ${pt.comment || 'Нет'}<br/>
       <b>Статус:</b> ${pt.status}<br/>
       <b>Дата:</b> ${formatDate(pt.date)}<br/>
       <b>Пользователь:</b> ${pt.user_name || 'ID: ' + pt.user_id}<br/>`;
