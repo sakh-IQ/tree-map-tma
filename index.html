@@ -350,7 +350,7 @@
 
 <script>
 // ЗАМЕНИТЕ НА ВАШ URL!!!
-const API_URL = 'https://script.google.com/macros/s/AKfycbzAwD75ox4qFgddpxSuDGkgWArko-H_q9Ax5aL5efyeeMXaM94t3myLc9WoLOrMNis/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzAwD75ox4qFgddpxSuDGkgWArko-H_q9Ax5aL5efyeeMXaM94t3myLc9WoLOrMNis/exec/exec';
 
 const tg = window.Telegram?.WebApp || {};
 const userId = tg.initDataUnsafe?.user?.id || 0;
@@ -410,11 +410,11 @@ debugLog(`Пользователь: ${userName} (ID: ${userId})`);
 debugLog(`API URL: ${API_URL.substring(0, 50)}...`);
 
 // Инициализация карты
-var map = L.map('map').setView([46.964071,142.754043], 17);
+var map = L.map('map').setView([46.963983, 142.753996], 17);
 
 var bounds = L.latLngBounds(
-  L.latLng(46.967556, 142.762746),
-  L.latLng(46.959268, 142.762271)
+  L.latLng(46.966238, 142.747308),
+  L.latLng(46.961201, 142.760771)
 );
 
 map.setMaxBounds(bounds);
@@ -580,54 +580,62 @@ document.getElementById('treeModal').addEventListener('click', function(e) {
 });
 
 function addPoint(lat, lng, type, comment) {
-  debugLog(`🌳 Добавляю точку: ${type}`);
-  debugLog(`📍 Координаты: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-  debugLog(`💬 Комментарий: "${comment}"`);
+  debugLog(`🌳 НАЧАЛО addPoint: ${type}`);
+  debugLog(`📍 Координаты в addPoint: ${lat}, ${lng}`);
+  debugLog(`👤 User ID: ${userId}, Name: ${userName}`);
   
-  const params = new URLSearchParams({
-    action: 'add',
-    user_id: userId,
-    user_name: userName,
-    lat: lat,
-    lng: lng,
-    type: type,
-    comment: comment
-  });
-  
-  const fullUrl = API_URL + '?' + params.toString();
-  debugLog(`🔗 URL: ${fullUrl.substring(0, 120)}...`);
-  
-  fetch(fullUrl)
-  .then(response => {
-    debugLog(`📡 Статус ответа: ${response.status}`);
-    return response.text();
-  })
-  .then(text => {
-    debugLog(`📄 Ответ: ${text.substring(0, 200)}...`);
+  try {
+    const params = new URLSearchParams({
+      action: 'add',
+      user_id: userId,
+      user_name: userName,
+      lat: lat,
+      lng: lng,
+      type: type,
+      comment: comment
+    });
     
-    try {
-      const result = JSON.parse(text);
-      debugLog(`✅ JSON распарсен: ${JSON.stringify(result)}`);
+    debugLog(`📦 Параметры созданы`);
+    
+    const fullUrl = API_URL + '?' + params.toString();
+    debugLog(`🔗 URL готов: ${fullUrl.length} символов`);
+    
+    debugLog(`📡 Начинаю fetch запрос...`);
+    
+    fetch(fullUrl)
+    .then(response => {
+      debugLog(`📡 Получен ответ со статусом: ${response.status}`);
+      return response.text();
+    })
+    .then(text => {
+      debugLog(`📄 Получен текст: ${text.substring(0, 100)}...`);
       
-      if (result.result === 'success') {
-        debugLog(`🎉 Точка успешно добавлена! ID: ${result.id}`);
-        alert(`Спасибо! Отметка "${type}" добавлена. ID: ${result.id}`);
-        loadData();
-      } else {
-        debugLog(`❌ Ошибка сервера: ${result.error}`);
-        alert('Ошибка при добавлении: ' + (result.error || 'Попробуйте еще раз'));
+      try {
+        const result = JSON.parse(text);
+        debugLog(`✅ JSON распарсен успешно`);
+        
+        if (result.result === 'success') {
+          debugLog(`🎉 Успех! ID: ${result.id}`);
+          alert(`Спасибо! Отметка "${type}" добавлена. ID: ${result.id}`);
+          loadData();
+        } else {
+          debugLog(`❌ Ошибка от сервера: ${result.error}`);
+          alert('Ошибка при добавлении: ' + (result.error || 'Попробуйте еще раз'));
+        }
+      } catch (e) {
+        debugLog(`❌ Ошибка парсинга: ${e.message}`);
+        alert('Сервер вернул некорректный ответ');
       }
-    } catch (e) {
-      debugLog(`❌ Ошибка парсинга JSON: ${e.message}`);
-      debugLog(`📄 Полученный текст: ${text}`);
-      alert('Сервер вернул некорректный ответ. Включите диагностику для подробностей.');
-    }
-  })
-  .catch(error => {
-    debugLog(`❌ Ошибка сети: ${error.message}`);
-    console.error('Ошибка сети:', error);
-    alert('Ошибка сети: ' + error.message);
-  });
+    })
+    .catch(error => {
+      debugLog(`❌ Ошибка fetch: ${error.message}`);
+      alert('Ошибка сети: ' + error.message);
+    });
+    
+  } catch (error) {
+    debugLog(`❌ Ошибка в addPoint: ${error.message}`);
+    alert('Ошибка выполнения: ' + error.message);
+  }
 }
 
 function updateStatus(id, status) {
