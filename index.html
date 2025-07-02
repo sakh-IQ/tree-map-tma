@@ -254,11 +254,57 @@
       font-style: italic;
       text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
     }
+    
+    /* Диагностическое окно */
+    .debug-panel {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.9);
+      color: #00ff00;
+      padding: 10px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 11px;
+      z-index: 2500;
+      max-width: 280px;
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #333;
+      display: none;
+    }
+    
+    .debug-panel.show {
+      display: block;
+    }
+    
+    .debug-toggle {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: #ff4444;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      z-index: 2600;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
 
 <div id="map"></div>
+
+<!-- Кнопка включения диагностики -->
+<button class="debug-toggle" onclick="toggleDebug()">DEBUG</button>
+
+<!-- Панель диагностики -->
+<div class="debug-panel" id="debugPanel">
+  <div style="color: #ffff00; margin-bottom: 5px;">🔍 ДИАГНОСТИКА</div>
+  <div id="debugMessages"></div>
+</div>
 
 <!-- Модальное окно выбора типа дерева -->
 <div class="tree-modal" id="treeModal">
@@ -304,7 +350,7 @@
 
 <script>
 // ЗАМЕНИТЕ НА ВАШ URL!!!
-const API_URL = 'https://script.google.com/macros/s/AKfycbz1skJ7WhRJOrrYjp3aAGQhGnUu4sVgRIV6SxX9OOm8i-qdIr7JZsX3rnTHmqRbjA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwevaTqlAsTiWdrq2w25a6O8vqgTdVLo2n1aj8PUgt2QF4X4jmq5OjjUbDoOTVxRNo/exec';
 
 const tg = window.Telegram?.WebApp || {};
 const userId = tg.initDataUnsafe?.user?.id || 0;
@@ -312,13 +358,56 @@ const userName = tg.initDataUnsafe?.user?.first_name || 'Гость';
 
 let isAdmin = false;
 let isBlocked = false;
-let currentClickCoords = null; // Координаты клика для модального окна
+let currentClickCoords = null;
+let debugMessages = [];
+let debugEnabled = false;
+
+// Функция диагностики
+function debugLog(message) {
+  console.log(message);
+  
+  if (debugEnabled) {
+    const timestamp = new Date().toLocaleTimeString();
+    debugMessages.push(`${timestamp}: ${message}`);
+    
+    // Оставляем только последние 20 сообщений
+    if (debugMessages.length > 20) {
+      debugMessages = debugMessages.slice(-20);
+    }
+    
+    const debugDiv = document.getElementById('debugMessages');
+    if (debugDiv) {
+      debugDiv.innerHTML = debugMessages.join('<br>');
+      debugDiv.scrollTop = debugDiv.scrollHeight;
+    }
+  }
+}
+
+function toggleDebug() {
+  debugEnabled = !debugEnabled;
+  const panel = document.getElementById('debugPanel');
+  const button = document.querySelector('.debug-toggle');
+  
+  if (debugEnabled) {
+    panel.classList.add('show');
+    button.textContent = 'СКРЫТЬ';
+    button.style.background = '#00aa00';
+    debugLog('Диагностика включена');
+  } else {
+    panel.classList.remove('show');
+    button.textContent = 'DEBUG';
+    button.style.background = '#ff4444';
+  }
+}
 
 // Настройка Telegram
 if (tg.ready) {
   tg.ready();
   tg.expand();
 }
+
+debugLog(`Пользователь: ${userName} (ID: ${userId})`);
+debugLog(`API URL: ${API_URL.substring(0, 50)}...`);
 
 // Инициализация карты
 var map = L.map('map').setView([46.963983, 142.753996], 17);
@@ -342,22 +431,34 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 loadData();
 
 function loadData() {
+  debugLog('🔄 Загружаю данные...');
+  
   fetch(API_URL + '?user_id=' + userId)
-    .then(response => response.json())
+    .then(response => {
+      debugLog(`📡 Статус ответа: ${response.status}`);
+      return response.json();
+    })
     .then(data => {
+      debugLog(`📊 Данные получены: ${JSON.stringify(data).substring(0, 100)}...`);
+      
       isAdmin = data.isAdmin;
       isBlocked = data.isBlocked;
       
+      debugLog(`👤 Админ: ${isAdmin}, Заблокирован: ${isBlocked}`);
+      debugLog(`📍 Точек загружено: ${data.points ? data.points.length : 0}`);
+      
       if (isBlocked) {
+        debugLog('❌ Пользователь заблокирован');
         alert('Ваш аккаунт заблокирован администратором за нарушение правил.');
         return;
       }
       
-      displayPoints(data.points);
+      displayPoints(data.points || []);
     })
     .catch(error => {
+      debugLog(`❌ Ошибка загрузки: ${error.message}`);
       console.error('Ошибка загрузки:', error);
-      alert('Ошибка загрузки данных');
+      alert('Ошибка загрузки данных: ' + error.message);
     });
 }
 
@@ -458,6 +559,10 @@ document.getElementById('treeModal').addEventListener('click', function(e) {
 });
 
 function addPoint(lat, lng, type, comment) {
+  debugLog(`🌳 Добавляю точку: ${type}`);
+  debugLog(`📍 Координаты: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+  debugLog(`💬 Комментарий: "${comment}"`);
+  
   const params = new URLSearchParams({
     action: 'add',
     user_id: userId,
@@ -468,19 +573,39 @@ function addPoint(lat, lng, type, comment) {
     comment: comment
   });
   
-  fetch(API_URL + '?' + params.toString())
-  .then(response => response.json())
-  .then(result => {
-    if (result.result === 'success') {
-      alert(`Спасибо! Отметка "${type}" добавлена.`);
-      loadData();
-    } else {
-      alert('Ошибка при добавлении: ' + (result.error || 'Попробуйте еще раз'));
+  const fullUrl = API_URL + '?' + params.toString();
+  debugLog(`🔗 URL: ${fullUrl.substring(0, 120)}...`);
+  
+  fetch(fullUrl)
+  .then(response => {
+    debugLog(`📡 Статус ответа: ${response.status}`);
+    return response.text();
+  })
+  .then(text => {
+    debugLog(`📄 Ответ: ${text.substring(0, 200)}...`);
+    
+    try {
+      const result = JSON.parse(text);
+      debugLog(`✅ JSON распарсен: ${JSON.stringify(result)}`);
+      
+      if (result.result === 'success') {
+        debugLog(`🎉 Точка успешно добавлена! ID: ${result.id}`);
+        alert(`Спасибо! Отметка "${type}" добавлена. ID: ${result.id}`);
+        loadData();
+      } else {
+        debugLog(`❌ Ошибка сервера: ${result.error}`);
+        alert('Ошибка при добавлении: ' + (result.error || 'Попробуйте еще раз'));
+      }
+    } catch (e) {
+      debugLog(`❌ Ошибка парсинга JSON: ${e.message}`);
+      debugLog(`📄 Полученный текст: ${text}`);
+      alert('Сервер вернул некорректный ответ. Включите диагностику для подробностей.');
     }
   })
   .catch(error => {
-    console.error('Ошибка:', error);
-    alert('Ошибка сети. Проверьте подключение к интернету.');
+    debugLog(`❌ Ошибка сети: ${error.message}`);
+    console.error('Ошибка сети:', error);
+    alert('Ошибка сети: ' + error.message);
   });
 }
 
