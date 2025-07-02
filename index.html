@@ -254,57 +254,11 @@
       font-style: italic;
       text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
     }
-    
-    /* Диагностическое окно */
-    .debug-panel {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      background: rgba(0,0,0,0.9);
-      color: #00ff00;
-      padding: 10px;
-      border-radius: 8px;
-      font-family: monospace;
-      font-size: 11px;
-      z-index: 2500;
-      max-width: 280px;
-      max-height: 300px;
-      overflow-y: auto;
-      border: 1px solid #333;
-      display: none;
-    }
-    
-    .debug-panel.show {
-      display: block;
-    }
-    
-    .debug-toggle {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      background: #ff4444;
-      color: white;
-      border: none;
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 12px;
-      z-index: 2600;
-      cursor: pointer;
-    }
   </style>
 </head>
 <body>
 
 <div id="map"></div>
-
-<!-- Кнопка включения диагностики -->
-<button class="debug-toggle" onclick="toggleDebug()">DEBUG</button>
-
-<!-- Панель диагностики -->
-<div class="debug-panel" id="debugPanel">
-  <div style="color: #ffff00; margin-bottom: 5px;">🔍 ДИАГНОСТИКА</div>
-  <div id="debugMessages"></div>
-</div>
 
 <!-- Модальное окно выбора типа дерева -->
 <div class="tree-modal" id="treeModal">
@@ -322,8 +276,6 @@
       <span class="option-emoji">🍂</span>
       Засохшее дерево
     </button>
-    
-
   </div>
 </div>
 
@@ -351,7 +303,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-// ЗАМЕНИТЕ НА ВАШ НОВЫЙ URL!!!
+// ЗАМЕНИТЕ НА ВАШ URL!!!
 const API_URL = 'https://script.google.com/macros/s/AKfycbxYX616xjJRm5nYJX2eXKzIzQOYWO7iZ3heki5BedPmO0FLjRm2kWiFHy_lSpztFuA/exec';
 
 const tg = window.Telegram?.WebApp || {};
@@ -361,63 +313,12 @@ const userName = tg.initDataUnsafe?.user?.first_name || 'Гость';
 let isAdmin = false;
 let isBlocked = false;
 let currentClickCoords = null;
-let debugMessages = [];
-let debugEnabled = false;
-
-// Функция диагностики
-function debugLog(message) {
-  console.log(message);
-  
-  if (debugEnabled) {
-    const timestamp = new Date().toLocaleTimeString();
-    debugMessages.push(`${timestamp}: ${message}`);
-    
-    // Оставляем только последние 20 сообщений
-    if (debugMessages.length > 20) {
-      debugMessages = debugMessages.slice(-20);
-    }
-    
-    const debugDiv = document.getElementById('debugMessages');
-    if (debugDiv) {
-      debugDiv.innerHTML = debugMessages.join('<br>');
-      debugDiv.scrollTop = debugDiv.scrollHeight;
-    }
-  }
-}
-
-function toggleDebug() {
-  debugEnabled = !debugEnabled;
-  const panel = document.getElementById('debugPanel');
-  const button = document.querySelector('.debug-toggle');
-  
-  if (debugEnabled) {
-    panel.classList.add('show');
-    button.textContent = 'СКРЫТЬ';
-    button.style.background = '#00aa00';
-    debugLog('Диагностика включена');
-  } else {
-    panel.classList.remove('show');
-    button.textContent = 'DEBUG';
-    button.style.background = '#ff4444';
-  }
-}
 
 // Настройка Telegram
 if (tg.ready) {
   tg.ready();
   tg.expand();
 }
-
-// Включаем DEBUG автоматически для тестирования
-debugEnabled = true;
-document.getElementById('debugPanel').classList.add('show');
-document.querySelector('.debug-toggle').textContent = 'СКРЫТЬ';
-document.querySelector('.debug-toggle').style.background = '#00aa00';
-
-debugLog(`Пользователь: ${userName} (ID: ${userId})`);
-debugLog(`API URL: ${API_URL.substring(0, 50)}...`);
-debugLog(`Telegram WebApp доступен: ${!!window.Telegram?.WebApp}`);
-debugLog(`User data: ${JSON.stringify(tg.initDataUnsafe?.user || 'нет данных')}`);
 
 // Инициализация карты
 var map = L.map('map').setView([46.963983, 142.753996], 17);
@@ -441,37 +342,22 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 loadData();
 
 function loadData() {
-  debugLog('🔄 Загружаю данные...');
-  debugLog(`📡 Запрос к: ${API_URL}?user_id=${userId}`);
-  
   fetch(API_URL + '?user_id=' + userId)
     .then(response => {
-      debugLog(`📡 Статус загрузки: ${response.status} ${response.statusText}`);
-      debugLog(`📡 Content-Type: ${response.headers.get('content-type')}`);
-      
-      // Читаем как текст для диагностики
       return response.text().then(text => {
-        debugLog(`📄 Сырой ответ загрузки (первые 200 символов): ${text.substring(0, 200)}...`);
         try {
           const json = JSON.parse(text);
           return json;
         } catch (e) {
-          debugLog(`❌ Ошибка JSON при загрузке: ${e.message}`);
           throw new Error(`Некорректный JSON от сервера: ${text.substring(0, 100)}...`);
         }
       });
     })
     .then(data => {
-      debugLog(`📊 Распарсенные данные загрузки: ${JSON.stringify(data, null, 2)}`);
-      
       isAdmin = data.isAdmin;
       isBlocked = data.isBlocked;
       
-      debugLog(`👤 Админ: ${isAdmin}, Заблокирован: ${isBlocked}`);
-      debugLog(`📍 Точек загружено: ${data.points ? data.points.length : 0}`);
-      
       if (isBlocked) {
-        debugLog('❌ Пользователь заблокирован');
         alert('Ваш аккаунт заблокирован администратором за нарушение правил.');
         return;
       }
@@ -479,8 +365,6 @@ function loadData() {
       displayPoints(data.points || []);
     })
     .catch(error => {
-      debugLog(`❌ Ошибка загрузки: ${error.message}`);
-      debugLog(`❌ Stack: ${error.stack}`);
       console.error('Ошибка загрузки:', error);
       alert('Ошибка загрузки данных: ' + error.message);
     });
@@ -540,49 +424,35 @@ function formatDate(dateStr) {
 
 // Клик по карте для добавления точки
 map.on('click', function(e) {
-  debugLog(`🖱️ Клик по карте: ${e.latlng.lat}, ${e.latlng.lng}`);
-  
   if (isBlocked) {
-    debugLog('❌ Пользователь заблокирован');
     alert('Ваш аккаунт заблокирован!');
     return;
   }
   
   if (!bounds.contains(e.latlng)) {
-    debugLog('❌ Клик вне границ парка');
     alert('Отметки можно ставить только в пределах парка!');
     return;
   }
   
   // Сохраняем координаты и показываем модальное окно
   currentClickCoords = e.latlng;
-  debugLog(`💾 Координаты сохранены: ${currentClickCoords.lat}, ${currentClickCoords.lng}`);
-  
-  debugLog('🎨 Показываю модальное окно');
   showTreeModal();
 });
 
 function showTreeModal() {
-  debugLog('📱 Открываю модальное окно');
   document.getElementById('treeModal').classList.add('show');
 }
 
 function closeTreeModal() {
-  debugLog('❌ Закрываю модальное окно');
   document.getElementById('treeModal').classList.remove('show');
   currentClickCoords = null;
 }
 
 function selectTreeType(type) {
-  debugLog(`🎯 Выбран тип: ${type}`);
-  
   if (!currentClickCoords) {
-    debugLog('❌ Нет сохраненных координат!');
     alert('Ошибка: координаты не сохранены');
     return;
   }
-  
-  debugLog(`📍 Используем координаты: ${currentClickCoords.lat}, ${currentClickCoords.lng}`);
   
   // Сохраняем координаты в переменные ДО закрытия модального окна
   const lat = currentClickCoords.lat;
@@ -593,11 +463,6 @@ function selectTreeType(type) {
   
   // Запрашиваем комментарий
   const comment = prompt(`Комментарий к "${type}" (необязательно):`, "") || "";
-  debugLog(`💬 Введен комментарий: "${comment}"`);
-  
-  debugLog(`🚀 Готов вызвать addPoint с параметрами:`);
-  debugLog(`- lat: ${lat}, lng: ${lng}`);
-  debugLog(`- type: ${type}, comment: ${comment}`);
   
   // Добавляем точку с сохраненными координатами
   addPoint(lat, lng, type, comment);
@@ -611,11 +476,6 @@ document.getElementById('treeModal').addEventListener('click', function(e) {
 });
 
 function addPoint(lat, lng, type, comment) {
-  debugLog(`🌳 Добавляю точку: ${type}`);
-  debugLog(`📍 Координаты: ${lat}, ${lng}`);
-  debugLog(`👤 User ID: ${userId}, User Name: ${userName}`);
-  debugLog(`🔗 API URL: ${API_URL}`);
-  
   try {
     const data = {
       action: 'add',
@@ -627,13 +487,10 @@ function addPoint(lat, lng, type, comment) {
       comment: comment
     };
     
-    debugLog(`📦 Данные для отправки: ${JSON.stringify(data, null, 2)}`);
-    debugLog(`📡 Отправляю POST-запрос на ${API_URL}...`);
-    
-    // Попробуем сначала обычный fetch
+    // Попробуем сначала POST
     fetch(API_URL, {
       method: 'POST',
-      mode: 'cors', // Явно указываем CORS
+      mode: 'cors',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
@@ -641,59 +498,40 @@ function addPoint(lat, lng, type, comment) {
       body: JSON.stringify(data)
     })
     .then(response => {
-      debugLog(`📡 Статус ответа: ${response.status} ${response.statusText}`);
-      debugLog(`📡 Headers: ${JSON.stringify([...response.headers])}`);
-      
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
-      // Читаем ответ как текст сначала для диагностики
       return response.text().then(text => {
-        debugLog(`📄 Сырой ответ: ${text.substring(0, 500)}...`);
         try {
           const json = JSON.parse(text);
           return json;
         } catch (e) {
-          debugLog(`❌ Ошибка парсинга JSON: ${e.message}`);
           throw new Error(`Сервер вернул некорректный JSON: ${text.substring(0, 100)}...`);
         }
       });
     })
     .then(result => {
-      debugLog(`✅ Распарсенный ответ: ${JSON.stringify(result, null, 2)}`);
-      
       if (result.result === 'success') {
-        debugLog(`🎉 Успех! ID: ${result.id}`);
         alert(`Спасибо! Отметка "${type}" добавлена. ID: ${result.id}`);
         setTimeout(() => loadData(), 1000);
       } else if (result.error) {
-        debugLog(`❌ Ошибка от сервера: ${result.error}`);
         alert('Ошибка сервера: ' + result.error);
       } else {
-        debugLog(`❌ Неожиданный ответ: ${JSON.stringify(result)}`);
         alert('Неожиданный ответ от сервера');
       }
     })
     .catch(error => {
-      debugLog(`❌ Ошибка fetch: ${error.message}`);
-      debugLog(`❌ Stack trace: ${error.stack}`);
-      
-      // Если POST не работает, попробуем через GET как в оригинале
-      debugLog(`🔄 POST не сработал, пробуем GET...`);
+      // Если POST не работает, попробуем через GET
       tryGetMethod(lat, lng, type, comment);
     });
     
   } catch (error) {
-    debugLog(`❌ Ошибка в addPoint: ${error.message}`);
-    debugLog(`❌ Stack trace: ${error.stack}`);
     alert('Ошибка выполнения: ' + error.message);
   }
 }
 
 function tryGetMethod(lat, lng, type, comment) {
-  debugLog(`🔄 Пробуем метод GET...`);
-  
   const params = new URLSearchParams({
     action: 'add',
     user_id: userId,
@@ -705,34 +543,28 @@ function tryGetMethod(lat, lng, type, comment) {
   });
   
   const getUrl = API_URL + '?' + params.toString();
-  debugLog(`📡 GET URL: ${getUrl.substring(0, 100)}...`);
   
   fetch(getUrl, {
     method: 'GET',
     mode: 'cors'
   })
   .then(response => {
-    debugLog(`📡 GET статус: ${response.status} ${response.statusText}`);
     return response.text();
   })
   .then(text => {
-    debugLog(`📄 GET ответ: ${text.substring(0, 500)}...`);
     try {
       const result = JSON.parse(text);
       if (result.result === 'success') {
-        debugLog(`🎉 GET успех! ID: ${result.id}`);
         alert(`Спасибо! Отметка "${type}" добавлена. ID: ${result.id}`);
         setTimeout(() => loadData(), 1000);
       } else {
         alert('Ошибка GET: ' + (result.error || 'Неизвестная ошибка'));
       }
     } catch (e) {
-      debugLog(`❌ GET JSON ошибка: ${e.message}`);
       alert('Ошибка парсинга GET ответа');
     }
   })
   .catch(error => {
-    debugLog(`❌ GET ошибка: ${error.message}`);
     alert('GET тоже не работает: ' + error.message);
   });
 }
@@ -742,8 +574,6 @@ function updateStatus(id, status) {
     alert('Недостаточно прав');
     return;
   }
-  
-  debugLog(`🔄 Обновляю статус точки ${id} на "${status}"`);
   
   const data = {
     action: 'update',
@@ -762,11 +592,9 @@ function updateStatus(id, status) {
     body: JSON.stringify(data)
   })
   .then(response => {
-    debugLog(`📡 Update статус: ${response.status}`);
     return response.json();
   })
   .then(result => {
-    debugLog(`✅ Update ответ: ${JSON.stringify(result)}`);
     if (result.result === 'updated') {
       alert('Статус обновлён!');
       loadData();
@@ -775,7 +603,6 @@ function updateStatus(id, status) {
     }
   })
   .catch(error => {
-    debugLog(`❌ POST update ошибка: ${error.message}`);
     // Fallback на GET
     const params = new URLSearchParams({
       action: 'update',
@@ -797,7 +624,6 @@ function updateStatus(id, status) {
       }
     })
     .catch(err => {
-      debugLog(`❌ GET update ошибка: ${err.message}`);
       alert('Ошибка обновления: ' + err.message);
     });
   });
@@ -810,8 +636,6 @@ function deletePoint(id) {
   }
   
   if (!confirm('Вы уверены, что хотите удалить эту отметку?')) return;
-  
-  debugLog(`🗑️ Удаляю точку ${id}`);
   
   const data = {
     action: 'delete',
@@ -829,11 +653,9 @@ function deletePoint(id) {
     body: JSON.stringify(data)
   })
   .then(response => {
-    debugLog(`📡 Delete статус: ${response.status}`);
     return response.json();
   })
   .then(result => {
-    debugLog(`✅ Delete ответ: ${JSON.stringify(result)}`);
     if (result.result === 'deleted') {
       alert('Отметка удалена!');
       loadData();
@@ -842,7 +664,6 @@ function deletePoint(id) {
     }
   })
   .catch(error => {
-    debugLog(`❌ POST delete ошибка: ${error.message}`);
     // Fallback на GET
     const params = new URLSearchParams({
       action: 'delete',
@@ -863,7 +684,6 @@ function deletePoint(id) {
       }
     })
     .catch(err => {
-      debugLog(`❌ GET delete ошибка: ${err.message}`);
       alert('Ошибка удаления: ' + err.message);
     });
   });
@@ -878,8 +698,6 @@ function blockUser(targetUserId, userName) {
   if (!confirm(`Вы уверены, что хотите заблокировать пользователя "${userName}"?\n\nОн больше не сможет добавлять отметки.`)) {
     return;
   }
-  
-  debugLog(`🚫 Блокирую пользователя ${targetUserId} (${userName})`);
   
   const data = {
     action: 'block_user',
@@ -897,11 +715,9 @@ function blockUser(targetUserId, userName) {
     body: JSON.stringify(data)
   })
   .then(response => {
-    debugLog(`📡 Block статус: ${response.status}`);
     return response.json();
   })
   .then(result => {
-    debugLog(`✅ Block ответ: ${JSON.stringify(result)}`);
     if (result.result === 'blocked') {
       alert(`Пользователь "${userName}" заблокирован!`);
       loadData();
@@ -910,7 +726,6 @@ function blockUser(targetUserId, userName) {
     }
   })
   .catch(error => {
-    debugLog(`❌ POST block ошибка: ${error.message}`);
     // Fallback на GET
     const params = new URLSearchParams({
       action: 'block_user',
@@ -931,7 +746,6 @@ function blockUser(targetUserId, userName) {
       }
     })
     .catch(err => {
-      debugLog(`❌ GET block ошибка: ${err.message}`);
       alert('Ошибка блокировки: ' + err.message);
     });
   });
