@@ -24,8 +24,11 @@
       animation: fadeIn 0.5s ease-in-out forwards;
     }
     
-    @keyframes fadeIn {
-      to { opacity: 1; }
+    /* Скрываем attribution OpenStreetMap под нашей панелью */
+    .leaflet-control-attribution {
+      position: fixed !important;
+      bottom: -50px !important;
+      z-index: 500 !important;
     }
     .custom-popup {
       font-size: 14px;
@@ -131,6 +134,25 @@
 
 <div id="map"></div>
 
+<!-- Модальное окно выбора типа дерева -->
+<div class="tree-modal" id="treeModal">
+  <div class="modal-content">
+    <button class="close-modal" onclick="closeTreeModal()">&times;</button>
+    <div class="tree-icon">🌳</div>
+    <div class="modal-title">Что случилось с деревом?</div>
+    
+    <button class="tree-option infected" onclick="selectTreeType('Заражённое дерево')">
+      <span class="option-emoji">🦠</span>
+      Заражённое дерево
+    </button>
+    
+    <button class="tree-option dead" onclick="selectTreeType('Засохшее дерево')">
+      <span class="option-emoji">🍂</span>
+      Засохшее дерево
+    </button>
+  </div>
+</div>
+
 <div class="status-legend">
   <div class="app-title">🌳 Мониторинг деревьев</div>
   
@@ -156,7 +178,7 @@
 
 <script>
 // ЗАМЕНИТЕ НА ВАШ URL!!!
-const API_URL = 'https://script.google.com/macros/s/AKfycbxfZiLAydmxj1e4ZXVNopjvlf6mh3wUpA2RDqXkYueOZjQLLl9jjrI8zv4Diw-L1Z8/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwevaTqlAsTiWdrq2w25a6O8vqgTdVLo2n1aj8PUgt2QF4X4jmq5OjjUbDoOTVxRNo/exec';
 
 const tg = window.Telegram?.WebApp || {};
 const userId = tg.initDataUnsafe?.user?.id || 0;
@@ -164,6 +186,7 @@ const userName = tg.initDataUnsafe?.user?.first_name || 'Гость';
 
 let isAdmin = false;
 let isBlocked = false;
+let currentClickCoords = null; // Координаты клика для модального окна
 
 // Настройка Telegram
 if (tg.ready) {
@@ -275,16 +298,36 @@ map.on('click', function(e) {
     return;
   }
   
-  const lat = e.latlng.lat;
-  const lng = e.latlng.lng;
+  // Сохраняем координаты и показываем модальное окно
+  currentClickCoords = e.latlng;
+  showTreeModal();
+});
+
+function showTreeModal() {
+  document.getElementById('treeModal').classList.add('show');
+}
+
+function closeTreeModal() {
+  document.getElementById('treeModal').classList.remove('show');
+  currentClickCoords = null;
+}
+
+function selectTreeType(type) {
+  if (!currentClickCoords) return;
   
-  // Простой выбор из двух вариантов
-  const choice = confirm('Выберите тип проблемы:\n\nОК = Заражённое дерево\nОтмена = Засохшее дерево');
+  closeTreeModal();
   
-  const type = choice ? 'Заражённое дерево' : 'Засохшее дерево';
+  // Запрашиваем комментарий
   const comment = prompt(`Комментарий к "${type}" (необязательно):`, "") || "";
   
-  addPoint(lat, lng, type, comment);
+  addPoint(currentClickCoords.lat, currentClickCoords.lng, type, comment);
+}
+
+// Закрытие модального окна при клике вне его
+document.getElementById('treeModal').addEventListener('click', function(e) {
+  if (e.target === this) {
+    closeTreeModal();
+  }
 });
 
 function addPoint(lat, lng, type, comment) {
