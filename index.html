@@ -408,8 +408,16 @@ if (tg.ready) {
   tg.expand();
 }
 
+// Включаем DEBUG автоматически для тестирования
+debugEnabled = true;
+document.getElementById('debugPanel').classList.add('show');
+document.querySelector('.debug-toggle').textContent = 'СКРЫТЬ';
+document.querySelector('.debug-toggle').style.background = '#00aa00';
+
 debugLog(`Пользователь: ${userName} (ID: ${userId})`);
 debugLog(`API URL: ${API_URL.substring(0, 50)}...`);
+debugLog(`Telegram WebApp доступен: ${!!window.Telegram?.WebApp}`);
+debugLog(`User data: ${JSON.stringify(tg.initDataUnsafe?.user || 'нет данных')}`);
 
 // Инициализация карты
 var map = L.map('map').setView([46.963983, 142.753996], 17);
@@ -434,14 +442,27 @@ loadData();
 
 function loadData() {
   debugLog('🔄 Загружаю данные...');
+  debugLog(`📡 Запрос к: ${API_URL}?user_id=${userId}`);
   
   fetch(API_URL + '?user_id=' + userId)
     .then(response => {
-      debugLog(`📡 Статус ответа: ${response.status}`);
-      return response.json();
+      debugLog(`📡 Статус загрузки: ${response.status} ${response.statusText}`);
+      debugLog(`📡 Content-Type: ${response.headers.get('content-type')}`);
+      
+      // Читаем как текст для диагностики
+      return response.text().then(text => {
+        debugLog(`📄 Сырой ответ загрузки (первые 200 символов): ${text.substring(0, 200)}...`);
+        try {
+          const json = JSON.parse(text);
+          return json;
+        } catch (e) {
+          debugLog(`❌ Ошибка JSON при загрузке: ${e.message}`);
+          throw new Error(`Некорректный JSON от сервера: ${text.substring(0, 100)}...`);
+        }
+      });
     })
     .then(data => {
-      debugLog(`📊 Данные получены: ${JSON.stringify(data).substring(0, 100)}...`);
+      debugLog(`📊 Распарсенные данные загрузки: ${JSON.stringify(data, null, 2)}`);
       
       isAdmin = data.isAdmin;
       isBlocked = data.isBlocked;
@@ -459,6 +480,7 @@ function loadData() {
     })
     .catch(error => {
       debugLog(`❌ Ошибка загрузки: ${error.message}`);
+      debugLog(`❌ Stack: ${error.stack}`);
       console.error('Ошибка загрузки:', error);
       alert('Ошибка загрузки данных: ' + error.message);
     });
@@ -562,22 +584,22 @@ function selectTreeType(type) {
   
   debugLog(`📍 Используем координаты: ${currentClickCoords.lat}, ${currentClickCoords.lng}`);
   
-  // Закрываем модальное окно
+  // Сохраняем координаты в переменные ДО закрытия модального окна
+  const lat = currentClickCoords.lat;
+  const lng = currentClickCoords.lng;
+  
+  // Закрываем модальное окно (это обнулит currentClickCoords)
   closeTreeModal();
   
   // Запрашиваем комментарий
   const comment = prompt(`Комментарий к "${type}" (необязательно):`, "") || "";
   debugLog(`💬 Введен комментарий: "${comment}"`);
   
-  // Сохраняем параметры в переменные для безопасности
-  const lat = currentClickCoords.lat;
-  const lng = currentClickCoords.lng;
-  
   debugLog(`🚀 Готов вызвать addPoint с параметрами:`);
   debugLog(`- lat: ${lat}, lng: ${lng}`);
   debugLog(`- type: ${type}, comment: ${comment}`);
   
-  // Добавляем точку
+  // Добавляем точку с сохраненными координатами
   addPoint(lat, lng, type, comment);
 }
 
