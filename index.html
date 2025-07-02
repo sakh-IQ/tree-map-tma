@@ -323,15 +323,7 @@
       Засохшее дерево
     </button>
     
-    <button class="tree-option" onclick="selectTreeType('Повреждённое дерево')">
-      <span class="option-emoji">⚡</span>
-      Повреждённое дерево
-    </button>
-    
-    <button class="tree-option" onclick="selectTreeType('Опасное дерево')">
-      <span class="option-emoji">⚠️</span>
-      Опасное дерево
-    </button>
+
   </div>
 </div>
 
@@ -599,6 +591,8 @@ document.getElementById('treeModal').addEventListener('click', function(e) {
 function addPoint(lat, lng, type, comment) {
   debugLog(`🌳 Добавляю точку: ${type}`);
   debugLog(`📍 Координаты: ${lat}, ${lng}`);
+  debugLog(`👤 User ID: ${userId}, User Name: ${userName}`);
+  debugLog(`🔗 API URL: ${API_URL}`);
   
   try {
     const data = {
@@ -611,8 +605,8 @@ function addPoint(lat, lng, type, comment) {
       comment: comment
     };
     
-    debugLog(`📦 Данные подготовлены: ${JSON.stringify(data)}`);
-    debugLog(`📡 Отправляю POST-запрос...`);
+    debugLog(`📦 Данные для отправки: ${JSON.stringify(data, null, 2)}`);
+    debugLog(`📡 Отправляю POST-запрос на ${API_URL}...`);
     
     fetch(API_URL, {
       method: 'POST',
@@ -622,31 +616,45 @@ function addPoint(lat, lng, type, comment) {
       }
     })
     .then(response => {
-      debugLog(`📡 Получен ответ со статусом: ${response.status}`);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      return response.json();
+      debugLog(`📡 Статус ответа: ${response.status} ${response.statusText}`);
+      debugLog(`📡 Headers: ${JSON.stringify([...response.headers])}`);
+      
+      // Читаем ответ как текст сначала для диагностики
+      return response.text().then(text => {
+        debugLog(`📄 Сырой ответ: ${text}`);
+        try {
+          const json = JSON.parse(text);
+          return json;
+        } catch (e) {
+          debugLog(`❌ Ошибка парсинга JSON: ${e.message}`);
+          throw new Error(`Сервер вернул некорректный JSON: ${text.substring(0, 100)}...`);
+        }
+      });
     })
     .then(result => {
-      debugLog(`✅ Сервер ответил: ${JSON.stringify(result)}`);
+      debugLog(`✅ Распарсенный ответ: ${JSON.stringify(result, null, 2)}`);
       
       if (result.result === 'success') {
         debugLog(`🎉 Успех! ID: ${result.id}`);
         alert(`Спасибо! Отметка "${type}" добавлена. ID: ${result.id}`);
-        loadData();
-      } else {
+        setTimeout(() => loadData(), 1000); // Небольшая задержка перед обновлением
+      } else if (result.error) {
         debugLog(`❌ Ошибка от сервера: ${result.error}`);
-        alert('Ошибка при добавлении: ' + (result.error || 'Попробуйте еще раз'));
+        alert('Ошибка сервера: ' + result.error);
+      } else {
+        debugLog(`❌ Неожиданный ответ: ${JSON.stringify(result)}`);
+        alert('Неожиданный ответ от сервера');
       }
     })
     .catch(error => {
       debugLog(`❌ Ошибка fetch: ${error.message}`);
-      alert('Ошибка сети: ' + error.message);
+      debugLog(`❌ Stack trace: ${error.stack}`);
+      alert('Ошибка соединения: ' + error.message);
     });
     
   } catch (error) {
     debugLog(`❌ Ошибка в addPoint: ${error.message}`);
+    debugLog(`❌ Stack trace: ${error.stack}`);
     alert('Ошибка выполнения: ' + error.message);
   }
 }
