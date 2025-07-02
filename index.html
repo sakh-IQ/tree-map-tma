@@ -322,6 +322,16 @@
       <span class="option-emoji">🍂</span>
       Засохшее дерево
     </button>
+    
+    <button class="tree-option" onclick="selectTreeType('Повреждённое дерево')">
+      <span class="option-emoji">⚡</span>
+      Повреждённое дерево
+    </button>
+    
+    <button class="tree-option" onclick="selectTreeType('Опасное дерево')">
+      <span class="option-emoji">⚠️</span>
+      Опасное дерево
+    </button>
   </div>
 </div>
 
@@ -349,8 +359,8 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-// ЗАМЕНИТЕ НА ВАШ URL!!!
-const API_URL = 'https://script.google.com/macros/s/AKfycbzAwD75ox4qFgddpxSuDGkgWArko-H_q9Ax5aL5efyeeMXaM94t3myLc9WoLOrMNis/exec';
+// ЗАМЕНИТЕ НА ВАШ РАБОЧИЙ URL!!!
+const API_URL = 'https://script.google.com/macros/s/AKfycbxWOFDhSaGNFyL6hdoCRsEQwt8YGgfjgNhaswPVEPaGhLcaAFNh_D8rbNwbkP1novM/exec';
 
 const tg = window.Telegram?.WebApp || {};
 const userId = tg.initDataUnsafe?.user?.id || 0;
@@ -560,12 +570,6 @@ function selectTreeType(type) {
   
   debugLog(`📍 Используем координаты: ${currentClickCoords.lat}, ${currentClickCoords.lng}`);
   
-  // Проверяем все переменные
-  debugLog(`🔍 Проверка переменных:`);
-  debugLog(`- userId: ${userId} (тип: ${typeof userId})`);
-  debugLog(`- userName: ${userName} (тип: ${typeof userName})`);
-  debugLog(`- API_URL: ${API_URL ? 'есть' : 'нет'}`);
-  
   // Закрываем модальное окно
   closeTreeModal();
   
@@ -581,15 +585,8 @@ function selectTreeType(type) {
   debugLog(`- lat: ${lat}, lng: ${lng}`);
   debugLog(`- type: ${type}, comment: ${comment}`);
   
-  // Добавим небольшую задержку и попробуем
-  setTimeout(() => {
-    debugLog(`⏰ Вызываю addPoint через setTimeout...`);
-    try {
-      addPoint(lat, lng, type, comment);
-    } catch (error) {
-      debugLog(`❌ Ошибка при вызове addPoint: ${error.message}`);
-    }
-  }, 100);
+  // Добавляем точку
+  addPoint(lat, lng, type, comment);
 }
 
 // Закрытие модального окна при клике вне его
@@ -600,7 +597,6 @@ document.getElementById('treeModal').addEventListener('click', function(e) {
 });
 
 function addPoint(lat, lng, type, comment) {
-  debugLog(`🚨 addPoint ЗАПУЩЕНА! Параметры получены`);
   debugLog(`🌳 Добавляю точку: ${type}`);
   debugLog(`📍 Координаты: ${lat}, ${lng}`);
   
@@ -627,6 +623,9 @@ function addPoint(lat, lng, type, comment) {
     })
     .then(response => {
       debugLog(`📡 Получен ответ со статусом: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
       return response.json();
     })
     .then(result => {
