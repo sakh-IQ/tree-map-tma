@@ -743,28 +743,63 @@ function updateStatus(id, status) {
     return;
   }
   
+  debugLog(`🔄 Обновляю статус точки ${id} на "${status}"`);
+  
+  const data = {
+    action: 'update',
+    id: id,
+    status: status
+  };
+  
+  // Пробуем POST, если не работает - GET
   fetch(API_URL, {
     method: 'POST',
-    body: JSON.stringify({
-      action: 'update',
-      id: id,
-      status: status
-    }),
+    mode: 'cors',
     headers: {
-      'Content-Type': 'application/json'
-    }
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify(data)
   })
-  .then(response => response.json())
+  .then(response => {
+    debugLog(`📡 Update статус: ${response.status}`);
+    return response.json();
+  })
   .then(result => {
+    debugLog(`✅ Update ответ: ${JSON.stringify(result)}`);
     if (result.result === 'updated') {
       alert('Статус обновлён!');
       loadData();
     } else {
-      alert('Ошибка при обновлении');
+      alert('Ошибка при обновлении: ' + (result.error || 'Неизвестная ошибка'));
     }
   })
   .catch(error => {
-    alert('Ошибка: ' + error.message);
+    debugLog(`❌ POST update ошибка: ${error.message}`);
+    // Fallback на GET
+    const params = new URLSearchParams({
+      action: 'update',
+      id: id,
+      status: status
+    });
+    
+    fetch(API_URL + '?' + params.toString(), {
+      method: 'GET',
+      mode: 'cors'
+    })
+    .then(response => response.json())
+    .then(result => {
+      if (result.result === 'updated') {
+        alert('Статус обновлён!');
+        loadData();
+      } else {
+        alert('Ошибка обновления: ' + (result.error || 'Неизвестная ошибка'));
+      }
+    })
+    .catch(err => {
+      debugLog(`❌ GET update ошибка: ${err.message}`);
+      alert('Ошибка обновления: ' + err.message);
+    });
   });
 }
 
@@ -776,27 +811,61 @@ function deletePoint(id) {
   
   if (!confirm('Вы уверены, что хотите удалить эту отметку?')) return;
   
+  debugLog(`🗑️ Удаляю точку ${id}`);
+  
+  const data = {
+    action: 'delete',
+    id: id
+  };
+  
+  // Пробуем POST, если не работает - GET
   fetch(API_URL, {
     method: 'POST',
-    body: JSON.stringify({
-      action: 'delete',
-      id: id
-    }),
+    mode: 'cors',
     headers: {
-      'Content-Type': 'application/json'
-    }
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify(data)
   })
-  .then(response => response.json())
+  .then(response => {
+    debugLog(`📡 Delete статус: ${response.status}`);
+    return response.json();
+  })
   .then(result => {
+    debugLog(`✅ Delete ответ: ${JSON.stringify(result)}`);
     if (result.result === 'deleted') {
       alert('Отметка удалена!');
       loadData();
     } else {
-      alert('Ошибка при удалении');
+      alert('Ошибка при удалении: ' + (result.error || 'Неизвестная ошибка'));
     }
   })
   .catch(error => {
-    alert('Ошибка: ' + error.message);
+    debugLog(`❌ POST delete ошибка: ${error.message}`);
+    // Fallback на GET
+    const params = new URLSearchParams({
+      action: 'delete',
+      id: id
+    });
+    
+    fetch(API_URL + '?' + params.toString(), {
+      method: 'GET',
+      mode: 'cors'
+    })
+    .then(response => response.json())
+    .then(result => {
+      if (result.result === 'deleted') {
+        alert('Отметка удалена!');
+        loadData();
+      } else {
+        alert('Ошибка удаления: ' + (result.error || 'Неизвестная ошибка'));
+      }
+    })
+    .catch(err => {
+      debugLog(`❌ GET delete ошибка: ${err.message}`);
+      alert('Ошибка удаления: ' + err.message);
+    });
   });
 }
 
@@ -810,27 +879,61 @@ function blockUser(targetUserId, userName) {
     return;
   }
   
+  debugLog(`🚫 Блокирую пользователя ${targetUserId} (${userName})`);
+  
+  const data = {
+    action: 'block_user',
+    target_user_id: targetUserId
+  };
+  
+  // Пробуем POST, если не работает - GET
   fetch(API_URL, {
     method: 'POST',
-    body: JSON.stringify({
-      action: 'block_user',
-      target_user_id: targetUserId
-    }),
+    mode: 'cors',
     headers: {
-      'Content-Type': 'application/json'
-    }
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify(data)
   })
-  .then(response => response.json())
+  .then(response => {
+    debugLog(`📡 Block статус: ${response.status}`);
+    return response.json();
+  })
   .then(result => {
+    debugLog(`✅ Block ответ: ${JSON.stringify(result)}`);
     if (result.result === 'blocked') {
       alert(`Пользователь "${userName}" заблокирован!`);
       loadData();
     } else {
-      alert('Ошибка при блокировке');
+      alert('Ошибка при блокировке: ' + (result.error || 'Неизвестная ошибка'));
     }
   })
   .catch(error => {
-    alert('Ошибка: ' + error.message);
+    debugLog(`❌ POST block ошибка: ${error.message}`);
+    // Fallback на GET
+    const params = new URLSearchParams({
+      action: 'block_user',
+      target_user_id: targetUserId
+    });
+    
+    fetch(API_URL + '?' + params.toString(), {
+      method: 'GET',
+      mode: 'cors'
+    })
+    .then(response => response.json())
+    .then(result => {
+      if (result.result === 'blocked') {
+        alert(`Пользователь "${userName}" заблокирован!`);
+        loadData();
+      } else {
+        alert('Ошибка блокировки: ' + (result.error || 'Неизвестная ошибка'));
+      }
+    })
+    .catch(err => {
+      debugLog(`❌ GET block ошибка: ${err.message}`);
+      alert('Ошибка блокировки: ' + err.message);
+    });
   });
 }
 
