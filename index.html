@@ -24,12 +24,136 @@
       animation: fadeIn 0.5s ease-in-out forwards;
     }
     
+    @keyframes fadeIn {
+      to { opacity: 1; }
+    }
+    
     /* Скрываем attribution OpenStreetMap под нашей панелью */
     .leaflet-control-attribution {
       position: fixed !important;
       bottom: -50px !important;
       z-index: 500 !important;
     }
+    
+    /* Модальное окно выбора типа дерева */
+    .tree-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(5px);
+    }
+    
+    .tree-modal.show {
+      display: flex;
+      animation: modalAppear 0.3s ease-out;
+    }
+    
+    @keyframes modalAppear {
+      from {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      max-width: 320px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      position: relative;
+    }
+    
+    .tree-icon {
+      font-size: 60px;
+      margin-bottom: 15px;
+    }
+    
+    .modal-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #2c3e50;
+      margin-bottom: 20px;
+    }
+    
+    .tree-option {
+      display: block;
+      width: 100%;
+      padding: 15px;
+      margin: 10px 0;
+      border: 2px solid #e1e8ed;
+      border-radius: 12px;
+      background: white;
+      font-size: 16px;
+      font-weight: 500;
+      color: #2c3e50;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .tree-option:hover {
+      border-color: #3498db;
+      background: #f8f9fa;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(52, 152, 219, 0.2);
+    }
+    
+    .tree-option.infected {
+      border-color: #e74c3c;
+    }
+    
+    .tree-option.infected:hover {
+      border-color: #c0392b;
+      background: #fdf2f2;
+      box-shadow: 0 5px 15px rgba(231, 76, 60, 0.2);
+    }
+    
+    .tree-option.dead {
+      border-color: #f39c12;
+    }
+    
+    .tree-option.dead:hover {
+      border-color: #d68910;
+      background: #fef9e7;
+      box-shadow: 0 5px 15px rgba(243, 156, 18, 0.2);
+    }
+    
+    .option-emoji {
+      font-size: 24px;
+      margin-right: 10px;
+    }
+    
+    .close-modal {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      background: none;
+      border: none;
+      font-size: 24px;
+      color: #95a5a6;
+      cursor: pointer;
+      transition: color 0.2s ease;
+    }
+    
+    .close-modal:hover {
+      color: #7f8c8d;
+    }
+
     .custom-popup {
       font-size: 14px;
       max-width: 250px;
@@ -44,6 +168,7 @@
       height: 1px;
       background: linear-gradient(to right, transparent, #ddd, transparent);
     }
+
     .popup-btn {
       display: inline-block;
       margin: 4px 2px;
@@ -75,6 +200,7 @@
       background: #f39c12;
       color: white;
     }
+
     .status-legend {
       position: fixed;
       bottom: 0;
@@ -262,9 +388,10 @@ function displayPoints(points) {
 
     if (isAdmin) {
       popupContent += `<hr style="margin: 8px 0;">
-        <button class="popup-btn success" onclick="updateStatus(${pt.id}, 'Подтверждено')">Подтвердить</button>
-        <button class="popup-btn" onclick="updateStatus(${pt.id}, 'Обработано')">Обработано</button><br/>
-        <button class="popup-btn danger" onclick="deletePoint(${pt.id})">Удалить</button>`;
+        <button class="popup-btn success" onclick="updateStatus(${pt.id}, 'Подтверждено')">✓ Подтвердить</button>
+        <button class="popup-btn" onclick="updateStatus(${pt.id}, 'Обработано')">🔧 Обработано</button><br/>
+        <button class="popup-btn danger" onclick="deletePoint(${pt.id})">🗑 Удалить</button>
+        <button class="popup-btn warning" onclick="blockUser(${pt.user_id}, '${pt.user_name}')">🚫 Заблокировать</button>`;
     }
 
     popupContent += `</div>`;
@@ -359,7 +486,7 @@ function addPoint(lat, lng, type, comment) {
 
 function updateStatus(id, status) {
   if (!isAdmin) {
-    alert('Нет прав');
+    alert('Недостаточно прав');
     return;
   }
   
@@ -376,7 +503,7 @@ function updateStatus(id, status) {
       alert('Статус обновлён!');
       loadData();
     } else {
-      alert('Ошибка обновления');
+      alert('Ошибка при обновлении');
     }
   })
   .catch(error => {
@@ -441,6 +568,9 @@ function blockUser(targetUserId, userName) {
     alert('Ошибка: ' + error.message);
   });
 }
+
+// Обновление данных каждые 30 секунд
+setInterval(loadData, 30000);
 </script>
 
 </body>
