@@ -13,68 +13,117 @@
     html, body, #map {
       height: 100%;
       margin: 0;
+      padding-bottom: 80px;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    /* Плавное появление карты */
+    #map {
+      opacity: 0;
+      animation: fadeIn 0.5s ease-in-out forwards;
+    }
+    
+    @keyframes fadeIn {
+      to { opacity: 1; }
     }
     .custom-popup {
       font-size: 14px;
       max-width: 250px;
+      font-family: inherit;
+      line-height: 1.4;
+    }
+    .custom-popup b {
+      color: #2c3e50;
+    }
+    .custom-popup hr {
+      border: none;
+      height: 1px;
+      background: linear-gradient(to right, transparent, #ddd, transparent);
     }
     .popup-btn {
       display: inline-block;
       margin: 4px 2px;
-      padding: 6px 10px;
-      background: #007aff;
+      padding: 8px 12px;
+      background: #3498db;
       color: #fff;
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
       cursor: pointer;
       font-size: 12px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .popup-btn:hover {
-      background: #0056b3;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    .popup-btn:active {
+      transform: translateY(0);
     }
     .popup-btn.danger {
-      background: #dc3545;
+      background: #e74c3c;
     }
     .popup-btn.success {
-      background: #28a745;
+      background: #27ae60;
+    }
+    .popup-btn.warning {
+      background: #f39c12;
+      color: white;
     }
     .status-legend {
       position: fixed;
-      bottom: 10px;
-      left: 10px;
-      background: rgba(255,255,255,0.9);
-      padding: 10px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-      font-size: 12px;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px 20px;
+      font-size: 14px;
       z-index: 1000;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      flex-wrap: wrap;
+      backdrop-filter: blur(10px);
+      border-top: 1px solid rgba(255,255,255,0.1);
     }
     .legend-item {
       display: flex;
       align-items: center;
-      margin: 2px 0;
+      margin: 4px 8px;
+      background: rgba(255,255,255,0.15);
+      padding: 8px 12px;
+      border-radius: 25px;
+      backdrop-filter: blur(5px);
+      border: 1px solid rgba(255,255,255,0.1);
+      transition: all 0.2s ease;
+    }
+    .legend-item:hover {
+      background: rgba(255,255,255,0.25);
+      transform: translateY(-1px);
     }
     .legend-color {
-      width: 12px;
-      height: 12px;
+      width: 14px;
+      height: 14px;
       border-radius: 50%;
-      margin-right: 5px;
-      border: 2px solid #333;
-    }
-    .debug {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      background: rgba(255,0,0,0.9);
-      color: white;
-      padding: 10px;
-      border-radius: 8px;
-      font-size: 12px;
-      z-index: 1000;
-      max-width: 300px;
-      max-height: 200px;
-      overflow-y: auto;
+      margin-right: 8px;
       border: 2px solid white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .app-title {
+      font-weight: 600;
+      font-size: 16px;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+      letter-spacing: 0.5px;
+    }
+    .help-text {
+      font-size: 12px; 
+      opacity: 0.9;
+      font-style: italic;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
     }
   </style>
 </head>
@@ -82,30 +131,32 @@
 
 <div id="map"></div>
 
-<div class="debug" id="debug">
-  Загрузка...
-</div>
-
 <div class="status-legend">
+  <div class="app-title">🌳 Мониторинг деревьев</div>
+  
   <div class="legend-item">
     <div class="legend-color" style="background: #FFA500;"></div>
     <span>Подозрение</span>
   </div>
+  
   <div class="legend-item">
     <div class="legend-color" style="background: #FF0000;"></div>
     <span>Подтверждено</span>
   </div>
+  
   <div class="legend-item">
     <div class="legend-color" style="background: #00AA00;"></div>
     <span>Обработано</span>
   </div>
+  
+  <div class="help-text">Нажмите на карту, чтобы добавить отметку</div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
 // ЗАМЕНИТЕ НА ВАШ URL!!!
-const API_URL = 'https://script.google.com/macros/s/AKfycbyiXExRHclkPRiETY84NeKFZ2QA4DV12vdFICTfY5p6ar3Ax8VbMXp61IdvQyOEt1w/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxfZiLAydmxj1e4ZXVNopjvlf6mh3wUpA2RDqXkYueOZjQLLl9jjrI8zv4Diw-L1Z8/exec';
 
 const tg = window.Telegram?.WebApp || {};
 const userId = tg.initDataUnsafe?.user?.id || 0;
@@ -113,19 +164,6 @@ const userName = tg.initDataUnsafe?.user?.first_name || 'Гость';
 
 let isAdmin = false;
 let isBlocked = false;
-
-let debugMessages = [];
-
-function log(message) {
-  console.log(message);
-  debugMessages.push(new Date().toLocaleTimeString() + ': ' + message);
-  if (debugMessages.length > 10) {
-    debugMessages = debugMessages.slice(-10); // Оставляем только последние 10
-  }
-  document.getElementById('debug').innerHTML = debugMessages.join('<br>');
-}
-
-log(`User: ${userName} (${userId})`);
 
 // Настройка Telegram
 if (tg.ready) {
@@ -155,29 +193,22 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 loadData();
 
 function loadData() {
-  log('Загружаю данные...');
-  
   fetch(API_URL + '?user_id=' + userId)
-    .then(response => {
-      log(`Ответ: ${response.status}`);
-      return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
-      log(`Точек: ${data.points.length}, Админ: ${data.isAdmin}`);
-      
       isAdmin = data.isAdmin;
       isBlocked = data.isBlocked;
       
       if (isBlocked) {
-        alert('Вы заблокированы!');
+        alert('Ваш аккаунт заблокирован администратором за нарушение правил.');
         return;
       }
       
       displayPoints(data.points);
     })
     .catch(error => {
-      log('Ошибка: ' + error.message);
-      console.error('Error:', error);
+      console.error('Ошибка загрузки:', error);
+      alert('Ошибка загрузки данных');
     });
 }
 
@@ -235,34 +266,28 @@ function formatDate(dateStr) {
 // Клик по карте для добавления точки
 map.on('click', function(e) {
   if (isBlocked) {
-    alert('Вы заблокированы!');
+    alert('Ваш аккаунт заблокирован!');
     return;
   }
   
   if (!bounds.contains(e.latlng)) {
-    alert('Только в пределах парка!');
+    alert('Отметки можно ставить только в пределах парка!');
     return;
   }
   
   const lat = e.latlng.lat;
   const lng = e.latlng.lng;
   
-  const types = ['Заражённое дерево', 'Засохшее дерево', 'Повреждённое дерево', 'Опасное дерево'];
+  // Простой выбор из двух вариантов
+  const choice = confirm('Выберите тип проблемы:\n\nОК = Заражённое дерево\nОтмена = Засохшее дерево');
   
-  const choice = prompt(`Тип проблемы:\n1. Заражённое\n2. Засохшее\n3. Повреждённое\n4. Опасное\n\nВведите номер:`, '1');
-  
-  if (!choice || choice < 1 || choice > 4) return;
-  
-  const type = types[parseInt(choice) - 1];
-  const comment = prompt("Комментарий (необязательно):", "") || "";
+  const type = choice ? 'Заражённое дерево' : 'Засохшее дерево';
+  const comment = prompt(`Комментарий к "${type}" (необязательно):`, "") || "";
   
   addPoint(lat, lng, type, comment);
 });
 
 function addPoint(lat, lng, type, comment) {
-  log('Добавляю точку...');
-  
-  // Используем GET-запрос с параметрами
   const params = new URLSearchParams({
     action: 'add',
     user_id: userId,
@@ -273,35 +298,19 @@ function addPoint(lat, lng, type, comment) {
     comment: comment
   });
   
-  const url = API_URL + '?' + params.toString();
-  log('URL: ' + url.substring(0, 100) + '...');
-  
-  fetch(url)
-  .then(response => {
-    log(`POST статус: ${response.status}`);
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-    return response.text();
-  })
-  .then(text => {
-    log('Ответ: ' + text.substring(0, 50) + '...');
-    try {
-      const result = JSON.parse(text);
-      if (result.result === 'success') {
-        alert(`Точка добавлена! ID: ${result.id}`);
-        loadData();
-      } else {
-        alert('Ошибка: ' + (result.error || 'Неизвестная ошибка'));
-      }
-    } catch (e) {
-      log('Ошибка JSON: ' + e.message);
-      alert('Сервер вернул некорректный ответ');
+  fetch(API_URL + '?' + params.toString())
+  .then(response => response.json())
+  .then(result => {
+    if (result.result === 'success') {
+      alert(`Спасибо! Отметка "${type}" добавлена.`);
+      loadData();
+    } else {
+      alert('Ошибка при добавлении: ' + (result.error || 'Попробуйте еще раз'));
     }
   })
   .catch(error => {
-    log('Ошибка: ' + error.message);
-    alert('Ошибка при добавлении: ' + error.message);
+    console.error('Ошибка:', error);
+    alert('Ошибка сети. Проверьте подключение к интернету.');
   });
 }
 
@@ -334,11 +343,11 @@ function updateStatus(id, status) {
 
 function deletePoint(id) {
   if (!isAdmin) {
-    alert('Нет прав');
+    alert('Недостаточно прав');
     return;
   }
   
-  if (!confirm('Удалить точку?')) return;
+  if (!confirm('Вы уверены, что хотите удалить эту отметку?')) return;
   
   const params = new URLSearchParams({
     action: 'delete',
@@ -349,10 +358,40 @@ function deletePoint(id) {
   .then(response => response.json())
   .then(result => {
     if (result.result === 'deleted') {
-      alert('Точка удалена!');
+      alert('Отметка удалена!');
       loadData();
     } else {
-      alert('Ошибка удаления');
+      alert('Ошибка при удалении');
+    }
+  })
+  .catch(error => {
+    alert('Ошибка: ' + error.message);
+  });
+}
+
+function blockUser(targetUserId, userName) {
+  if (!isAdmin) {
+    alert('Недостаточно прав');
+    return;
+  }
+  
+  if (!confirm(`Вы уверены, что хотите заблокировать пользователя "${userName}"?\n\nОн больше не сможет добавлять отметки.`)) {
+    return;
+  }
+  
+  const params = new URLSearchParams({
+    action: 'block_user',
+    target_user_id: targetUserId
+  });
+  
+  fetch(API_URL + '?' + params.toString())
+  .then(response => response.json())
+  .then(result => {
+    if (result.result === 'blocked') {
+      alert(`Пользователь "${userName}" заблокирован!`);
+      loadData();
+    } else {
+      alert('Ошибка при блокировке');
     }
   })
   .catch(error => {
