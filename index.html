@@ -254,6 +254,61 @@
       font-style: italic;
       text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
     }
+    
+    /* Загрузочное окно */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 3000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(8px);
+    }
+    
+    .loading-overlay.show {
+      display: flex;
+      animation: fadeIn 0.3s ease-out;
+    }
+    
+    .loading-content {
+      background: white;
+      border-radius: 20px;
+      padding: 40px 30px;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      max-width: 300px;
+      width: 90%;
+    }
+    
+    .loading-spinner {
+      font-size: 40px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    .loading-text {
+      font-size: 16px;
+      color: #2c3e50;
+      font-weight: 500;
+      margin-bottom: 10px;
+      min-height: 24px;
+    }
+    
+    .loading-subtext {
+      font-size: 12px;
+      color: #7f8c8d;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -276,6 +331,15 @@
       <span class="option-emoji">🍂</span>
       Засохшее дерево
     </button>
+  </div>
+</div>
+
+<!-- Загрузочное окно -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-content">
+    <div class="loading-spinner">🌳</div>
+    <div class="loading-text" id="loadingText">Связываюсь с лесом...</div>
+    <div class="loading-subtext">Пожалуйста, подождите</div>
   </div>
 </div>
 
@@ -313,6 +377,49 @@ const userName = tg.initDataUnsafe?.user?.first_name || 'Гость';
 let isAdmin = false;
 let isBlocked = false;
 let currentClickCoords = null;
+let loadingInterval = null;
+
+// Забавные сообщения для загрузки
+const loadingMessages = [
+  "Связываюсь с лесом...",
+  "Ищу указанное дерево...",
+  "Зову дендрологов...",
+  "Консультируюсь с белками...",
+  "Проверяю состояние корней...",
+  "Считаю годичные кольца...",
+  "Спрашиваю у дятлов...",
+  "Анализирую листву...",
+  "Общаюсь с лесничим...",
+  "Записываю в лесную книгу...",
+  "Уведомляю лесных духов...",
+  "Проверяю базу данных природы..."
+];
+
+function showLoading() {
+  const overlay = document.getElementById('loadingOverlay');
+  const textElement = document.getElementById('loadingText');
+  
+  overlay.classList.add('show');
+  
+  let messageIndex = 0;
+  textElement.textContent = loadingMessages[0];
+  
+  // Меняем сообщения каждые 1.5 секунды
+  loadingInterval = setInterval(() => {
+    messageIndex = (messageIndex + 1) % loadingMessages.length;
+    textElement.textContent = loadingMessages[messageIndex];
+  }, 1500);
+}
+
+function hideLoading() {
+  const overlay = document.getElementById('loadingOverlay');
+  overlay.classList.remove('show');
+  
+  if (loadingInterval) {
+    clearInterval(loadingInterval);
+    loadingInterval = null;
+  }
+}
 
 // Настройка Telegram
 if (tg.ready) {
@@ -476,6 +583,8 @@ document.getElementById('treeModal').addEventListener('click', function(e) {
 });
 
 function addPoint(lat, lng, type, comment) {
+  showLoading(); // Показываем загрузку
+  
   try {
     const data = {
       action: 'add',
@@ -512,8 +621,10 @@ function addPoint(lat, lng, type, comment) {
       });
     })
     .then(result => {
+      hideLoading(); // Скрываем загрузку
+      
       if (result.result === 'success') {
-        alert(`Спасибо! Отметка "${type}" добавлена. ID: ${result.id}`);
+        alert(`🎉 Спасибо! Отметка "${type}" добавлена. ID: ${result.id}`);
         setTimeout(() => loadData(), 1000);
       } else if (result.error) {
         alert('Ошибка сервера: ' + result.error);
@@ -522,11 +633,12 @@ function addPoint(lat, lng, type, comment) {
       }
     })
     .catch(error => {
-      // Если POST не работает, попробуем через GET
+      // Если POST не работает, попробуем через GET (но загрузку не убираем)
       tryGetMethod(lat, lng, type, comment);
     });
     
   } catch (error) {
+    hideLoading();
     alert('Ошибка выполнения: ' + error.message);
   }
 }
@@ -552,10 +664,12 @@ function tryGetMethod(lat, lng, type, comment) {
     return response.text();
   })
   .then(text => {
+    hideLoading(); // Скрываем загрузку
+    
     try {
       const result = JSON.parse(text);
       if (result.result === 'success') {
-        alert(`Спасибо! Отметка "${type}" добавлена. ID: ${result.id}`);
+        alert(`🎉 Спасибо! Отметка "${type}" добавлена. ID: ${result.id}`);
         setTimeout(() => loadData(), 1000);
       } else {
         alert('Ошибка GET: ' + (result.error || 'Неизвестная ошибка'));
@@ -565,6 +679,7 @@ function tryGetMethod(lat, lng, type, comment) {
     }
   })
   .catch(error => {
+    hideLoading();
     alert('GET тоже не работает: ' + error.message);
   });
 }
