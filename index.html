@@ -401,13 +401,20 @@ function showLoading() {
   
   overlay.classList.add('show');
   
-  let messageIndex = 0;
-  textElement.textContent = loadingMessages[0];
+  // Показываем первое случайное сообщение
+  let currentMessage = Math.floor(Math.random() * loadingMessages.length);
+  textElement.textContent = loadingMessages[currentMessage];
   
-  // Меняем сообщения каждые 1.5 секунды
+  // Меняем сообщения каждые 1.5 секунды на случайные
   loadingInterval = setInterval(() => {
-    messageIndex = (messageIndex + 1) % loadingMessages.length;
-    textElement.textContent = loadingMessages[messageIndex];
+    let newMessage;
+    // Убеждаемся что новое сообщение отличается от текущего
+    do {
+      newMessage = Math.floor(Math.random() * loadingMessages.length);
+    } while (newMessage === currentMessage && loadingMessages.length > 1);
+    
+    currentMessage = newMessage;
+    textElement.textContent = loadingMessages[currentMessage];
   }, 1500);
 }
 
