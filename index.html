@@ -200,6 +200,10 @@
       background: #f39c12;
       color: white;
     }
+    .popup-btn.user-delete {
+      background: #e67e22;
+      color: white;
+    }
 
     .status-legend {
       position: fixed;
@@ -368,7 +372,7 @@
 
 <script>
 // ЗАМЕНИТЕ НА ВАШ URL!!!
-const API_URL = 'https://script.google.com/macros/s/AKfycbxYX616xjJRm5nYJX2eXKzIzQOYWO7iZ3heki5BedPmO0FLjRm2kWiFHy_lSpztFuA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxAjthFQ6G8NRC-9uPujT4_Hb1_34XE9rw8gbTXZ1LvwsYK1HVc8sCI55qrfqruxug/exec';
 
 const tg = window.Telegram?.WebApp || {};
 const userId = tg.initDataUnsafe?.user?.id || 0;
@@ -509,12 +513,24 @@ function displayPoints(points) {
       <b>Дата:</b> ${formatDate(pt.date)}<br/>
       <b>Пользователь:</b> ${pt.user_name || 'ID: ' + pt.user_id}<br/>`;
 
-    if (isAdmin) {
-      popupContent += `<hr style="margin: 8px 0;">
-        <button class="popup-btn success" onclick="updateStatus(${pt.id}, 'Подтверждено')">✓ Подтвердить</button>
+    // Проверяем, является ли текущий пользователь автором отметки
+    const isOwner = pt.user_id == userId;
+
+    if (isAdmin || isOwner) {
+      popupContent += `<hr style="margin: 8px 0;">`;
+      
+      // Кнопки для владельца отметки
+      if (isOwner && !isAdmin) {
+        popupContent += `<button class="popup-btn user-delete" onclick="deleteOwnPoint(${pt.id})">🗑 Удалить мою отметку</button>`;
+      }
+      
+      // Кнопки для администратора
+      if (isAdmin) {
+        popupContent += `<button class="popup-btn success" onclick="updateStatus(${pt.id}, 'Подтверждено')">✓ Подтвердить</button>
         <button class="popup-btn" onclick="updateStatus(${pt.id}, 'Обработано')">🔧 Обработано</button><br/>
         <button class="popup-btn danger" onclick="deletePoint(${pt.id})">🗑 Удалить</button>
         <button class="popup-btn warning" onclick="blockUser(${pt.user_id}, '${pt.user_name}')">🚫 Заблокировать</button>`;
+      }
     }
 
     popupContent += `</div>`;
@@ -691,77 +707,16 @@ function tryGetMethod(lat, lng, type, comment) {
   });
 }
 
-function updateStatus(id, status) {
-  if (!isAdmin) {
-    alert('Недостаточно прав');
+// Новая функция для удаления собственной отметки
+function deleteOwnPoint(id) {
+  if (!confirm('Вы уверены, что хотите удалить свою отметку?')) {
     return;
   }
   
   const data = {
-    action: 'update',
+    action: 'delete_own',
     id: id,
-    status: status
-  };
-  
-  // Пробуем POST, если не работает - GET
-  fetch(API_URL, {
-    method: 'POST',
-    mode: 'cors',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify(data)
-  })
-  .then(response => {
-    return response.json();
-  })
-  .then(result => {
-    if (result.result === 'updated') {
-      alert('Статус обновлён!');
-      loadData();
-    } else {
-      alert('Ошибка при обновлении: ' + (result.error || 'Неизвестная ошибка'));
-    }
-  })
-  .catch(error => {
-    // Fallback на GET
-    const params = new URLSearchParams({
-      action: 'update',
-      id: id,
-      status: status
-    });
-    
-    fetch(API_URL + '?' + params.toString(), {
-      method: 'GET',
-      mode: 'cors'
-    })
-    .then(response => response.json())
-    .then(result => {
-      if (result.result === 'updated') {
-        alert('Статус обновлён!');
-        loadData();
-      } else {
-        alert('Ошибка обновления: ' + (result.error || 'Неизвестная ошибка'));
-      }
-    })
-    .catch(err => {
-      alert('Ошибка обновления: ' + err.message);
-    });
-  });
-}
-
-function deletePoint(id) {
-  if (!isAdmin) {
-    alert('Недостаточно прав');
-    return;
-  }
-  
-  if (!confirm('Вы уверены, что хотите удалить эту отметку?')) return;
-  
-  const data = {
-    action: 'delete',
-    id: id
+    user_id: userId // Передаем ID пользователя для проверки владения
   };
   
   // Пробуем POST, если не работает - GET
@@ -779,8 +734,10 @@ function deletePoint(id) {
   })
   .then(result => {
     if (result.result === 'deleted') {
-      alert('Отметка удалена!');
+      alert('Ваша отметка удалена!');
       loadData();
+    } else if (result.error === 'not_owner') {
+      alert('Ошибка: Вы можете удалять только свои отметки!');
     } else {
       alert('Ошибка при удалении: ' + (result.error || 'Неизвестная ошибка'));
     }
@@ -878,4 +835,127 @@ setInterval(loadData, 30000);
 </script>
 
 </body>
-</html>
+</html>error || 'Неизвестная ошибка'));
+    }
+  })
+  .catch(error => {
+    // Fallback на GET
+    const params = new URLSearchParams({
+      action: 'delete_own',
+      id: id,
+      user_id: userId
+    });
+    
+    fetch(API_URL + '?' + params.toString(), {
+      method: 'GET',
+      mode: 'cors'
+    })
+    .then(response => response.json())
+    .then(result => {
+      if (result.result === 'deleted') {
+        alert('Ваша отметка удалена!');
+        loadData();
+      } else if (result.error === 'not_owner') {
+        alert('Ошибка: Вы можете удалять только свои отметки!');
+      } else {
+        alert('Ошибка удаления: ' + (result.error || 'Неизвестная ошибка'));
+      }
+    })
+    .catch(err => {
+      alert('Ошибка удаления: ' + err.message);
+    });
+  });
+}
+
+function updateStatus(id, status) {
+  if (!isAdmin) {
+    alert('Недостаточно прав');
+    return;
+  }
+  
+  const data = {
+    action: 'update',
+    id: id,
+    status: status
+  };
+  
+  // Пробуем POST, если не работает - GET
+  fetch(API_URL, {
+    method: 'POST',
+    mode: 'cors',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify(data)
+  })
+  .then(response => {
+    return response.json();
+  })
+  .then(result => {
+    if (result.result === 'updated') {
+      alert('Статус обновлён!');
+      loadData();
+    } else {
+      alert('Ошибка при обновлении: ' + (result.error || 'Неизвестная ошибка'));
+    }
+  })
+  .catch(error => {
+    // Fallback на GET
+    const params = new URLSearchParams({
+      action: 'update',
+      id: id,
+      status: status
+    });
+    
+    fetch(API_URL + '?' + params.toString(), {
+      method: 'GET',
+      mode: 'cors'
+    })
+    .then(response => response.json())
+    .then(result => {
+      if (result.result === 'updated') {
+        alert('Статус обновлён!');
+        loadData();
+      } else {
+        alert('Ошибка обновления: ' + (result.error || 'Неизвестная ошибка'));
+      }
+    })
+    .catch(err => {
+      alert('Ошибка обновления: ' + err.message);
+    });
+  });
+}
+
+function deletePoint(id) {
+  if (!isAdmin) {
+    alert('Недостаточно прав');
+    return;
+  }
+  
+  if (!confirm('Вы уверены, что хотите удалить эту отметку?')) return;
+  
+  const data = {
+    action: 'delete',
+    id: id
+  };
+  
+  // Пробуем POST, если не работает - GET
+  fetch(API_URL, {
+    method: 'POST',
+    mode: 'cors',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify(data)
+  })
+  .then(response => {
+    return response.json();
+  })
+  .then(result => {
+    if (result.result === 'deleted') {
+      alert('Отметка удалена!');
+      loadData();
+    } else {
+      alert('Ошибка при удалении: ' + (result.
