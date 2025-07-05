@@ -471,9 +471,14 @@ function loadData() {
         }
       });
     })
-    .then(data => {
+    .    then(data => {
       isAdmin = data.isAdmin;
       isBlocked = data.isBlocked;
+      
+      // Отладочная информация
+      console.log('User ID:', userId);
+      console.log('Is Admin:', isAdmin);
+      console.log('Is Blocked:', isBlocked);
       
       if (isBlocked) {
         alert('Ваш аккаунт заблокирован администратором за нарушение правил.');
@@ -516,11 +521,15 @@ function displayPoints(points) {
     // Проверяем, является ли текущий пользователь автором отметки
     const isOwner = pt.user_id == userId;
 
+    // Отладочная информация для каждой точки
+    console.log(`Point ${pt.id}: owner=${pt.user_id}, current=${userId}, isOwner=${isOwner}, isAdmin=${isAdmin}`);
+
     if (isAdmin || isOwner) {
       popupContent += `<hr style="margin: 8px 0;">`;
       
       // Кнопки для администратора (админ имеет полные права)
       if (isAdmin) {
+        console.log(`Adding admin buttons for point ${pt.id}`);
         popupContent += `<button class="popup-btn success" onclick="updateStatus(${pt.id}, 'Подтверждено')">✓ Подтвердить</button>
         <button class="popup-btn" onclick="updateStatus(${pt.id}, 'Обработано')">🔧 Обработано</button><br/>
         <button class="popup-btn danger" onclick="deletePoint(${pt.id})">🗑 Удалить</button>
@@ -528,6 +537,7 @@ function displayPoints(points) {
       }
       // Кнопки для обычного владельца отметки (если он не админ)
       else if (isOwner) {
+        console.log(`Adding owner buttons for point ${pt.id}`);
         popupContent += `<button class="popup-btn user-delete" onclick="deleteOwnPoint(${pt.id})">🗑 Удалить мою отметку</button>`;
       }
     }
