@@ -372,7 +372,7 @@
 
 <script>
 // ЗАМЕНИТЕ НА ВАШ URL!!!
-const API_URL = 'https://script.google.com/macros/s/AKfycbxAjthFQ6G8NRC-9uPujT4_Hb1_34XE9rw8gbTXZ1LvwsYK1HVc8sCI55qrfqruxug/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxYX616xjJRm5nYJX2eXKzIzQOYWO7iZ3heki5BedPmO0FLjRm2kWiFHy_lSpztFuA/exec';
 
 const tg = window.Telegram?.WebApp || {};
 const userId = tg.initDataUnsafe?.user?.id || 0;
@@ -519,17 +519,16 @@ function displayPoints(points) {
     if (isAdmin || isOwner) {
       popupContent += `<hr style="margin: 8px 0;">`;
       
-      // Кнопки для владельца отметки
-      if (isOwner && !isAdmin) {
-        popupContent += `<button class="popup-btn user-delete" onclick="deleteOwnPoint(${pt.id})">🗑 Удалить мою отметку</button>`;
-      }
-      
-      // Кнопки для администратора
+      // Кнопки для администратора (админ имеет полные права)
       if (isAdmin) {
         popupContent += `<button class="popup-btn success" onclick="updateStatus(${pt.id}, 'Подтверждено')">✓ Подтвердить</button>
         <button class="popup-btn" onclick="updateStatus(${pt.id}, 'Обработано')">🔧 Обработано</button><br/>
         <button class="popup-btn danger" onclick="deletePoint(${pt.id})">🗑 Удалить</button>
         <button class="popup-btn warning" onclick="blockUser(${pt.user_id}, '${pt.user_name}')">🚫 Заблокировать</button>`;
+      }
+      // Кнопки для обычного владельца отметки (если он не админ)
+      else if (isOwner) {
+        popupContent += `<button class="popup-btn user-delete" onclick="deleteOwnPoint(${pt.id})">🗑 Удалить мою отметку</button>`;
       }
     }
 
