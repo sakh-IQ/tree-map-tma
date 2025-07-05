@@ -744,8 +744,9 @@ function deleteOwnPoint(id) {
   .catch(error => {
     // Fallback на GET
     const params = new URLSearchParams({
-      action: 'delete',
-      id: id
+      action: 'delete_own',
+      id: id,
+      user_id: userId
     });
     
     fetch(API_URL + '?' + params.toString(), {
@@ -755,8 +756,10 @@ function deleteOwnPoint(id) {
     .then(response => response.json())
     .then(result => {
       if (result.result === 'deleted') {
-        alert('Отметка удалена!');
+        alert('Ваша отметка удалена!');
         loadData();
+      } else if (result.error === 'not_owner') {
+        alert('Ошибка: Вы можете удалять только свои отметки!');
       } else {
         alert('Ошибка удаления: ' + (result.error || 'Неизвестная ошибка'));
       }
