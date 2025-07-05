@@ -2,93 +2,44 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>Карта состояния деревьев</title>
+  <title>Мониторинг деревьев парка — 2ГИС</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- 2ГИС SDK -->
+  <script src="https://maps.api.2gis.ru/2.0/loader.js?pkg=full"></script>
 
   <style>
     html, body, #map {
       height: 100%;
       margin: 0;
-      padding-bottom: 80px;
-      box-sizing: border-box;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
-    
-    /* Плавное появление карты */
-    #map {
-      opacity: 0;
-      animation: fadeIn 0.5s ease-in-out forwards;
+
+    .custom-popup {
+      font-size: 14px;
+      max-width: 250px;
+      line-height: 1.4;
     }
-    
-    @keyframes fadeIn {
-      to { opacity: 1; }
-    }
-    
-    /* Скрываем attribution OpenStreetMap под нашей панелью */
-    .leaflet-control-attribution {
-      position: fixed !important;
-      bottom: -50px !important;
-      z-index: 500 !important;
-    }
-    
-    /* Модальное окно выбора типа дерева */
+
     .tree-modal {
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0,0,0,0.5);
-      z-index: 2000;
       display: none;
       align-items: center;
       justify-content: center;
+      z-index: 2000;
       backdrop-filter: blur(5px);
     }
-    
-    .tree-modal.show {
-      display: flex;
-      animation: modalAppear 0.3s ease-out;
-    }
-    
-    @keyframes modalAppear {
-      from {
-        opacity: 0;
-        transform: scale(0.9);
-      }
-      to {
-        opacity: 1;
-        transform: scale(1);
-      }
-    }
-    
+    .tree-modal.show { display: flex; }
     .modal-content {
-      background: white;
+      background: #fff;
       border-radius: 20px;
       padding: 30px;
       max-width: 320px;
       width: 90%;
       text-align: center;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-      position: relative;
     }
-    
-    .tree-icon {
-      font-size: 60px;
-      margin-bottom: 15px;
-    }
-    
-    .modal-title {
-      font-size: 20px;
-      font-weight: 600;
-      color: #2c3e50;
-      margin-bottom: 20px;
-    }
-    
     .tree-option {
       display: block;
       width: 100%;
@@ -96,218 +47,17 @@
       margin: 10px 0;
       border: 2px solid #e1e8ed;
       border-radius: 12px;
-      background: white;
-      font-size: 16px;
-      font-weight: 500;
-      color: #2c3e50;
       cursor: pointer;
-      transition: all 0.2s ease;
-      position: relative;
-      overflow: hidden;
     }
-    
     .tree-option:hover {
       border-color: #3498db;
       background: #f8f9fa;
-      transform: translateY(-2px);
-      box-shadow: 0 5px 15px rgba(52, 152, 219, 0.2);
     }
-    
-    .tree-option.infected {
-      border-color: #e74c3c;
-    }
-    
-    .tree-option.infected:hover {
-      border-color: #c0392b;
-      background: #fdf2f2;
-      box-shadow: 0 5px 15px rgba(231, 76, 60, 0.2);
-    }
-    
-    .tree-option.dead {
-      border-color: #f39c12;
-    }
-    
-    .tree-option.dead:hover {
-      border-color: #d68910;
-      background: #fef9e7;
-      box-shadow: 0 5px 15px rgba(243, 156, 18, 0.2);
-    }
-    
-    .option-emoji {
-      font-size: 24px;
-      margin-right: 10px;
-    }
-    
     .close-modal {
       position: absolute;
-      top: 15px;
-      right: 20px;
-      background: none;
-      border: none;
-      font-size: 24px;
-      color: #95a5a6;
-      cursor: pointer;
-      transition: color 0.2s ease;
-    }
-    
-    .close-modal:hover {
-      color: #7f8c8d;
-    }
-
-    .custom-popup {
-      font-size: 14px;
-      max-width: 250px;
-      font-family: inherit;
-      line-height: 1.4;
-    }
-    .custom-popup b {
-      color: #2c3e50;
-    }
-    .custom-popup hr {
-      border: none;
-      height: 1px;
-      background: linear-gradient(to right, transparent, #ddd, transparent);
-    }
-
-    .popup-btn {
-      display: inline-block;
-      margin: 4px 2px;
-      padding: 8px 12px;
-      background: #3498db;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 500;
-      transition: all 0.2s ease;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .popup-btn:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-    }
-    .popup-btn:active {
-      transform: translateY(0);
-    }
-    .popup-btn.danger {
-      background: #e74c3c;
-    }
-    .popup-btn.success {
-      background: #27ae60;
-    }
-    .popup-btn.warning {
-      background: #f39c12;
-      color: white;
-    }
-
-    .status-legend {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 15px 20px;
-      font-size: 14px;
-      z-index: 1000;
-      box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      flex-wrap: wrap;
-      backdrop-filter: blur(10px);
-      border-top: 1px solid rgba(255,255,255,0.1);
-    }
-    .legend-item {
-      display: flex;
-      align-items: center;
-      margin: 4px 8px;
-      background: rgba(255,255,255,0.15);
-      padding: 8px 12px;
-      border-radius: 25px;
-      backdrop-filter: blur(5px);
-      border: 1px solid rgba(255,255,255,0.1);
-      transition: all 0.2s ease;
-    }
-    .legend-item:hover {
-      background: rgba(255,255,255,0.25);
-      transform: translateY(-1px);
-    }
-    .legend-color {
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      margin-right: 8px;
-      border: 2px solid white;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
-    .app-title {
-      font-weight: 600;
-      font-size: 16px;
-      text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
-      letter-spacing: 0.5px;
-    }
-    .help-text {
-      font-size: 12px; 
-      opacity: 0.9;
-      font-style: italic;
-      text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-    }
-    
-    /* Загрузочное окно */
-    .loading-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.7);
-      z-index: 3000;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      backdrop-filter: blur(8px);
-    }
-    
-    .loading-overlay.show {
-      display: flex;
-      animation: fadeIn 0.3s ease-out;
-    }
-    
-    .loading-content {
-      background: white;
-      border-radius: 20px;
-      padding: 40px 30px;
-      text-align: center;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-      max-width: 300px;
-      width: 90%;
-    }
-    
-    .loading-spinner {
-      font-size: 40px;
-      animation: spin 1s linear infinite;
-      margin-bottom: 20px;
-    }
-    
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-    
-    .loading-text {
-      font-size: 16px;
-      color: #2c3e50;
-      font-weight: 500;
-      margin-bottom: 10px;
-      min-height: 24px;
-    }
-    
-    .loading-subtext {
-      font-size: 12px;
-      color: #7f8c8d;
-      font-style: italic;
+      top: 15px; right: 20px;
+      background: none; border: none;
+      font-size: 24px; cursor: pointer;
     }
   </style>
 </head>
@@ -315,60 +65,18 @@
 
 <div id="map"></div>
 
-<!-- Модальное окно выбора типа дерева -->
+<!-- Модальное окно -->
 <div class="tree-modal" id="treeModal">
   <div class="modal-content">
     <button class="close-modal" onclick="closeTreeModal()">&times;</button>
-    <div class="tree-icon">🌳</div>
-    <div class="modal-title">Что случилось с деревом?</div>
-    
-    <button class="tree-option infected" onclick="selectTreeType('Заражённое дерево')">
-      <span class="option-emoji">🦠</span>
-      Заражённое дерево
-    </button>
-    
-    <button class="tree-option dead" onclick="selectTreeType('Засохшее дерево')">
-      <span class="option-emoji">🍂</span>
-      Засохшее дерево
-    </button>
+    <h3>Что случилось с деревом?</h3>
+    <button class="tree-option" onclick="selectTreeType('Заражённое дерево')">Заражённое дерево</button>
+    <button class="tree-option" onclick="selectTreeType('Засохшее дерево')">Засохшее дерево</button>
   </div>
 </div>
-
-<!-- Загрузочное окно -->
-<div class="loading-overlay" id="loadingOverlay">
-  <div class="loading-content">
-    <div class="loading-spinner">🌳</div>
-    <div class="loading-text" id="loadingText">Связываюсь с лесом...</div>
-    <div class="loading-subtext">Пожалуйста, подождите</div>
-  </div>
-</div>
-
-<div class="status-legend">
-  <div class="app-title">🌳 Мониторинг деревьев</div>
-  
-  <div class="legend-item">
-    <div class="legend-color" style="background: #FFA500;"></div>
-    <span>Подозрение</span>
-  </div>
-  
-  <div class="legend-item">
-    <div class="legend-color" style="background: #FF0000;"></div>
-    <span>Подтверждено</span>
-  </div>
-  
-  <div class="legend-item">
-    <div class="legend-color" style="background: #00AA00;"></div>
-    <span>Обработано</span>
-  </div>
-  
-  <div class="help-text">Нажмите на карту, чтобы добавить отметку</div>
-</div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-// ЗАМЕНИТЕ НА ВАШ URL!!!
-const API_URL = 'https://script.google.com/macros/s/AKfycbxYX616xjJRm5nYJX2eXKzIzQOYWO7iZ3heki5BedPmO0FLjRm2kWiFHy_lSpztFuA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxYX616xjJRm5nYJX2eXKzIzQOYWO7iZ3heki5BedPmO0FLjRm2kWiFHy_lSpztFuA/exec'; // ЗАМЕНИ СВОЙ ID!
 
 const tg = window.Telegram?.WebApp || {};
 const userId = tg.initDataUnsafe?.user?.id || 0;
@@ -376,183 +84,95 @@ const userName = tg.initDataUnsafe?.user?.first_name || 'Гость';
 
 let isAdmin = false;
 let isBlocked = false;
+let map;
 let currentClickCoords = null;
-let loadingInterval = null;
 
-// Забавные сообщения для загрузки
-const loadingMessages = [
-  "Связываюсь с лесом...",
-  "Ищу указанное дерево...",
-  "Зову дендрологов...",
-  "Консультируюсь с белками...",
-  "Проверяю состояние корней...",
-  "Считаю годичные кольца...",
-  "Спрашиваю у дятлов...",
-  "Анализирую листву...",
-  "Общаюсь с лесничим...",
-  "Записываю в лесную книгу...",
-  "Уведомляю лесных духов...",
-  "Проверяю базу данных природы..."
-];
+DG.then(function() {
+  map = new DG.Map('map', {
+    center: [46.963983, 142.753996],
+    zoom: 17
+  });
 
-function showLoading() {
-  const overlay = document.getElementById('loadingOverlay');
-  const textElement = document.getElementById('loadingText');
-  
-  overlay.classList.add('show');
-  
-  // Показываем первое случайное сообщение
-  let currentMessage = Math.floor(Math.random() * loadingMessages.length);
-  textElement.textContent = loadingMessages[currentMessage];
-  
-  // Меняем сообщения каждые 1.5 секунды на случайные
-  loadingInterval = setInterval(() => {
-    let newMessage;
-    // Убеждаемся что новое сообщение отличается от текущего
-    do {
-      newMessage = Math.floor(Math.random() * loadingMessages.length);
-    } while (newMessage === currentMessage && loadingMessages.length > 1);
-    
-    currentMessage = newMessage;
-    textElement.textContent = loadingMessages[currentMessage];
-  }, 1500);
-}
+  loadData();
 
-function hideLoading() {
-  const overlay = document.getElementById('loadingOverlay');
-  overlay.classList.remove('show');
-  
-  if (loadingInterval) {
-    clearInterval(loadingInterval);
-    loadingInterval = null;
-  }
-}
+  map.on('click', function(e) {
+    if (isBlocked) {
+      alert('Вы заблокированы администратором');
+      return;
+    }
 
-// Настройка Telegram
-if (tg.ready) {
-  tg.ready();
-  tg.expand();
-}
-
-// Инициализация карты
-var map = L.map('map').setView([46.963983, 142.753996], 17);
-
-var bounds = L.latLngBounds(
-  L.latLng(46.967532, 142.746199),
-  L.latLng(46.962354, 142.762873)
-);
-
-map.setMaxBounds(bounds);
-map.on('drag', function() {
-  map.panInsideBounds(bounds, { animate: false });
+    currentClickCoords = [e.latlng.lat, e.latlng.lng];
+    showTreeModal();
+  });
 });
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '© OpenStreetMap'
-}).addTo(map);
-
-// Загрузка данных
-loadData();
-
+// Загрузка точек
 function loadData() {
   fetch(API_URL + '?user_id=' + userId)
-    .then(response => {
-      return response.text().then(text => {
-        try {
-          const json = JSON.parse(text);
-          return json;
-        } catch (e) {
-          throw new Error(`Некорректный JSON от сервера: ${text.substring(0, 100)}...`);
-        }
-      });
-    })
+    .then(res => res.json())
     .then(data => {
       isAdmin = data.isAdmin;
       isBlocked = data.isBlocked;
-      
+
       if (isBlocked) {
-        alert('Ваш аккаунт заблокирован администратором за нарушение правил.');
+        alert('Ваш аккаунт заблокирован!');
         return;
       }
-      
-      displayPoints(data.points || []);
+
+      if (data.points) {
+        data.points.forEach(pt => {
+          const marker = DG.marker([pt.lat, pt.lng]).addTo(map);
+          marker.bindPopup(`
+            <div class="custom-popup">
+              <b>Тип:</b> ${pt.type}<br/>
+              <b>Комментарий:</b> ${pt.comment || 'Нет'}<br/>
+              <b>Статус:</b> ${pt.status}<br/>
+              <b>Дата:</b> ${formatDate(pt.date)}<br/>
+              <b>Пользователь:</b> ${pt.user_name || 'ID: ' + pt.user_id}
+            </div>
+          `);
+        });
+      }
     })
-    .catch(error => {
-      console.error('Ошибка загрузки:', error);
-      alert('Ошибка загрузки данных: ' + error.message);
-    });
+    .catch(err => console.error('Ошибка загрузки:', err));
 }
 
-function displayPoints(points) {
-  // Очищаем маркеры
-  map.eachLayer(function(layer) {
-    if (layer instanceof L.CircleMarker) {
-      map.removeLayer(layer);
-    }
+function addPoint(lat, lng, type, comment) {
+  const params = new URLSearchParams({
+    action: 'add',
+    user_id: userId,
+    user_name: userName,
+    lat: lat,
+    lng: lng,
+    type: type,
+    comment: comment
   });
-  
-  points.forEach(pt => {
-    const color = getColor(pt.status);
-    const marker = L.circleMarker([pt.lat, pt.lng], {
-      color: color,
-      fillColor: color,
-      fillOpacity: 0.7,
-      radius: 8,
-      weight: 2
-    }).addTo(map);
 
-    let popupContent = `<div class="custom-popup">
-      <b>Тип:</b> ${pt.type}<br/>
-      <b>Комментарий (название дерева или иное):</b> ${pt.comment || 'Нет'}<br/>
-      <b>Статус:</b> ${pt.status}<br/>
-      <b>Дата:</b> ${formatDate(pt.date)}<br/>
-      <b>Пользователь:</b> ${pt.user_name || 'ID: ' + pt.user_id}<br/>`;
-
-    if (isAdmin) {
-      popupContent += `<hr style="margin: 8px 0;">
-        <button class="popup-btn success" onclick="updateStatus(${pt.id}, 'Подтверждено')">✓ Подтвердить</button>
-        <button class="popup-btn" onclick="updateStatus(${pt.id}, 'Обработано')">🔧 Обработано</button><br/>
-        <button class="popup-btn danger" onclick="deletePoint(${pt.id})">🗑 Удалить</button>
-        <button class="popup-btn warning" onclick="blockUser(${pt.user_id}, '${pt.user_name}')">🚫 Заблокировать</button>`;
-    }
-
-    popupContent += `</div>`;
-    marker.bindPopup(popupContent);
-  });
+  fetch(API_URL + '?' + params.toString())
+    .then(res => res.json())
+    .then(result => {
+      if (result.result === 'success') {
+        alert(`Спасибо! Отметка добавлена. ID: ${result.id}`);
+        reloadMarkers();
+      } else {
+        alert('Ошибка: ' + (result.error || ''));
+      }
+    })
+    .catch(err => console.error('Ошибка при добавлении:', err));
 }
 
-function getColor(status) {
-  switch(status) {
-    case 'Подозрение': return '#FFA500';
-    case 'Подтверждено': return '#FF0000';
-    case 'Обработано': return '#00AA00';
-    default: return '#808080';
-  }
+function reloadMarkers() {
+  map.eachLayer(layer => {
+    if (layer instanceof DG.Marker) map.removeLayer(layer);
+  });
+  loadData();
 }
 
 function formatDate(dateStr) {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('ru-RU');
+  return new Date(dateStr).toLocaleDateString('ru-RU');
 }
 
-// Клик по карте для добавления точки
-map.on('click', function(e) {
-  if (isBlocked) {
-    alert('Ваш аккаунт заблокирован!');
-    return;
-  }
-  
-  if (!bounds.contains(e.latlng)) {
-    alert('Отметки можно ставить только в пределах парка!');
-    return;
-  }
-  
-  // Сохраняем координаты и показываем модальное окно
-  currentClickCoords = e.latlng;
-  showTreeModal();
-});
-
+// Модалка
 function showTreeModal() {
   document.getElementById('treeModal').classList.add('show');
 }
@@ -563,318 +183,12 @@ function closeTreeModal() {
 }
 
 function selectTreeType(type) {
-  if (!currentClickCoords) {
-    alert('Ошибка: координаты не сохранены');
-    return;
-  }
-  
-  // Сохраняем координаты в переменные ДО закрытия модального окна
-  const lat = currentClickCoords.lat;
-  const lng = currentClickCoords.lng;
-  
-  // Закрываем модальное окно (это обнулит currentClickCoords)
   closeTreeModal();
-  
-  // Запрашиваем комментарий
-  const comment = prompt(`Комментарий к "${type}" (необязательно):`, "") || "";
-  
-  // Добавляем точку с сохраненными координатами
-  addPoint(lat, lng, type, comment);
-}
-
-// Закрытие модального окна при клике вне его
-document.getElementById('treeModal').addEventListener('click', function(e) {
-  if (e.target === this) {
-    closeTreeModal();
-  }
-});
-
-function addPoint(lat, lng, type, comment) {
-  showLoading(); // Показываем загрузку
-  
-  try {
-    const data = {
-      action: 'add',
-      user_id: userId,
-      user_name: userName,
-      lat: lat,
-      lng: lng,
-      type: type,
-      comment: comment
-    };
-    
-    // Попробуем сначала POST
-    fetch(API_URL, {
-      method: 'POST',
-      mode: 'cors',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(data)
-    })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      return response.text().then(text => {
-        try {
-          const json = JSON.parse(text);
-          return json;
-        } catch (e) {
-          throw new Error(`Сервер вернул некорректный JSON: ${text.substring(0, 100)}...`);
-        }
-      });
-    })
-    .then(result => {
-      hideLoading(); // Скрываем загрузку
-      
-      if (result.result === 'success') {
-        alert(`🎉 Спасибо! Отметка "${type}" добавлена. ID: ${result.id}`);
-        setTimeout(() => loadData(), 1000);
-      } else if (result.error) {
-        alert('Ошибка сервера: ' + result.error);
-      } else {
-        alert('Неожиданный ответ от сервера');
-      }
-    })
-    .catch(error => {
-      // Если POST не работает, попробуем через GET (но загрузку не убираем)
-      tryGetMethod(lat, lng, type, comment);
-    });
-    
-  } catch (error) {
-    hideLoading();
-    alert('Ошибка выполнения: ' + error.message);
+  const comment = prompt(`Комментарий к "${type}" (необязательно)`, "") || "";
+  if (currentClickCoords) {
+    addPoint(currentClickCoords[0], currentClickCoords[1], type, comment);
   }
 }
-
-function tryGetMethod(lat, lng, type, comment) {
-  const params = new URLSearchParams({
-    action: 'add',
-    user_id: userId,
-    user_name: userName,
-    lat: lat,
-    lng: lng,
-    type: type,
-    comment: comment
-  });
-  
-  const getUrl = API_URL + '?' + params.toString();
-  
-  fetch(getUrl, {
-    method: 'GET',
-    mode: 'cors'
-  })
-  .then(response => {
-    return response.text();
-  })
-  .then(text => {
-    hideLoading(); // Скрываем загрузку
-    
-    try {
-      const result = JSON.parse(text);
-      if (result.result === 'success') {
-        alert(`🎉 Спасибо! Отметка "${type}" добавлена. ID: ${result.id}`);
-        setTimeout(() => loadData(), 1000);
-      } else {
-        alert('Ошибка GET: ' + (result.error || 'Неизвестная ошибка'));
-      }
-    } catch (e) {
-      alert('Ошибка парсинга GET ответа');
-    }
-  })
-  .catch(error => {
-    hideLoading();
-    alert('GET тоже не работает: ' + error.message);
-  });
-}
-
-function updateStatus(id, status) {
-  if (!isAdmin) {
-    alert('Недостаточно прав');
-    return;
-  }
-  
-  const data = {
-    action: 'update',
-    id: id,
-    status: status
-  };
-  
-  // Пробуем POST, если не работает - GET
-  fetch(API_URL, {
-    method: 'POST',
-    mode: 'cors',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify(data)
-  })
-  .then(response => {
-    return response.json();
-  })
-  .then(result => {
-    if (result.result === 'updated') {
-      alert('Статус обновлён!');
-      loadData();
-    } else {
-      alert('Ошибка при обновлении: ' + (result.error || 'Неизвестная ошибка'));
-    }
-  })
-  .catch(error => {
-    // Fallback на GET
-    const params = new URLSearchParams({
-      action: 'update',
-      id: id,
-      status: status
-    });
-    
-    fetch(API_URL + '?' + params.toString(), {
-      method: 'GET',
-      mode: 'cors'
-    })
-    .then(response => response.json())
-    .then(result => {
-      if (result.result === 'updated') {
-        alert('Статус обновлён!');
-        loadData();
-      } else {
-        alert('Ошибка обновления: ' + (result.error || 'Неизвестная ошибка'));
-      }
-    })
-    .catch(err => {
-      alert('Ошибка обновления: ' + err.message);
-    });
-  });
-}
-
-function deletePoint(id) {
-  if (!isAdmin) {
-    alert('Недостаточно прав');
-    return;
-  }
-  
-  if (!confirm('Вы уверены, что хотите удалить эту отметку?')) return;
-  
-  const data = {
-    action: 'delete',
-    id: id
-  };
-  
-  // Пробуем POST, если не работает - GET
-  fetch(API_URL, {
-    method: 'POST',
-    mode: 'cors',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify(data)
-  })
-  .then(response => {
-    return response.json();
-  })
-  .then(result => {
-    if (result.result === 'deleted') {
-      alert('Отметка удалена!');
-      loadData();
-    } else {
-      alert('Ошибка при удалении: ' + (result.error || 'Неизвестная ошибка'));
-    }
-  })
-  .catch(error => {
-    // Fallback на GET
-    const params = new URLSearchParams({
-      action: 'delete',
-      id: id
-    });
-    
-    fetch(API_URL + '?' + params.toString(), {
-      method: 'GET',
-      mode: 'cors'
-    })
-    .then(response => response.json())
-    .then(result => {
-      if (result.result === 'deleted') {
-        alert('Отметка удалена!');
-        loadData();
-      } else {
-        alert('Ошибка удаления: ' + (result.error || 'Неизвестная ошибка'));
-      }
-    })
-    .catch(err => {
-      alert('Ошибка удаления: ' + err.message);
-    });
-  });
-}
-
-function blockUser(targetUserId, userName) {
-  if (!isAdmin) {
-    alert('Недостаточно прав');
-    return;
-  }
-  
-  if (!confirm(`Вы уверены, что хотите заблокировать пользователя "${userName}"?\n\nОн больше не сможет добавлять отметки.`)) {
-    return;
-  }
-  
-  const data = {
-    action: 'block_user',
-    target_user_id: targetUserId
-  };
-  
-  // Пробуем POST, если не работает - GET
-  fetch(API_URL, {
-    method: 'POST',
-    mode: 'cors',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify(data)
-  })
-  .then(response => {
-    return response.json();
-  })
-  .then(result => {
-    if (result.result === 'blocked') {
-      alert(`Пользователь "${userName}" заблокирован!`);
-      loadData();
-    } else {
-      alert('Ошибка при блокировке: ' + (result.error || 'Неизвестная ошибка'));
-    }
-  })
-  .catch(error => {
-    // Fallback на GET
-    const params = new URLSearchParams({
-      action: 'block_user',
-      target_user_id: targetUserId
-    });
-    
-    fetch(API_URL + '?' + params.toString(), {
-      method: 'GET',
-      mode: 'cors'
-    })
-    .then(response => response.json())
-    .then(result => {
-      if (result.result === 'blocked') {
-        alert(`Пользователь "${userName}" заблокирован!`);
-        loadData();
-      } else {
-        alert('Ошибка блокировки: ' + (result.error || 'Неизвестная ошибка'));
-      }
-    })
-    .catch(err => {
-      alert('Ошибка блокировки: ' + err.message);
-    });
-  });
-}
-
-// Обновление данных каждые 30 секунд
-setInterval(loadData, 30000);
 </script>
 
 </body>
