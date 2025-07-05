@@ -880,6 +880,126 @@ function blockUser(targetUserId, userName) {
   });
 }
 
+function updateStatus(id, status) {
+  if (!isAdmin) {
+    alert('Недостаточно прав');
+    return;
+  }
+  
+  const data = {
+    action: 'update',
+    id: id,
+    status: status
+  };
+  
+  // Пробуем POST, если не работает - GET
+  fetch(API_URL, {
+    method: 'POST',
+    mode: 'cors',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify(data)
+  })
+  .then(response => {
+    return response.json();
+  })
+  .then(result => {
+    if (result.result === 'updated') {
+      alert('Статус обновлён!');
+      loadData();
+    } else {
+      alert('Ошибка при обновлении: ' + (result.error || 'Неизвестная ошибка'));
+    }
+  })
+  .catch(error => {
+    // Fallback на GET
+    const params = new URLSearchParams({
+      action: 'update',
+      id: id,
+      status: status
+    });
+    
+    fetch(API_URL + '?' + params.toString(), {
+      method: 'GET',
+      mode: 'cors'
+    })
+    .then(response => response.json())
+    .then(result => {
+      if (result.result === 'updated') {
+        alert('Статус обновлён!');
+        loadData();
+      } else {
+        alert('Ошибка обновления: ' + (result.error || 'Неизвестная ошибка'));
+      }
+    })
+    .catch(err => {
+      alert('Ошибка обновления: ' + err.message);
+    });
+  });
+}
+
+function deletePoint(id) {
+  if (!isAdmin) {
+    alert('Недостаточно прав');
+    return;
+  }
+  
+  if (!confirm('Вы уверены, что хотите удалить эту отметку?')) return;
+  
+  const data = {
+    action: 'delete',
+    id: id
+  };
+  
+  // Пробуем POST, если не работает - GET
+  fetch(API_URL, {
+    method: 'POST',
+    mode: 'cors',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify(data)
+  })
+  .then(response => {
+    return response.json();
+  })
+  .then(result => {
+    if (result.result === 'deleted') {
+      alert('Отметка удалена!');
+      loadData();
+    } else {
+      alert('Ошибка при удалении: ' + (result.error || 'Неизвестная ошибка'));
+    }
+  })
+  .catch(error => {
+    // Fallback на GET
+    const params = new URLSearchParams({
+      action: 'delete',
+      id: id
+    });
+    
+    fetch(API_URL + '?' + params.toString(), {
+      method: 'GET',
+      mode: 'cors'
+    })
+    .then(response => response.json())
+    .then(result => {
+      if (result.result === 'deleted') {
+        alert('Отметка удалена!');
+        loadData();
+      } else {
+        alert('Ошибка удаления: ' + (result.error || 'Неизвестная ошибка'));
+      }
+    })
+    .catch(err => {
+      alert('Ошибка удаления: ' + err.message);
+    });
+  });
+}
+
 // Обновление данных каждые 30 секунд
 setInterval(loadData, 30000);
 </script>
