@@ -375,8 +375,34 @@
 const API_URL = 'https://script.google.com/macros/s/AKfycbxAjthFQ6G8NRC-9uPujT4_Hb1_34XE9rw8gbTXZ1LvwsYK1HVc8sCI55qrfqruxug/exec';
 
 const tg = window.Telegram?.WebApp || {};
-const userId = tg.initDataUnsafe?.user?.id || 0;
-const userName = tg.initDataUnsafe?.user?.first_name || 'Гость';
+let userId = tg.initDataUnsafe?.user?.id || 0;
+let userName = tg.initDataUnsafe?.user?.first_name || 'Гость';
+
+// РЕЖИМ РАЗРАБОТКИ - УДАЛИТЕ В ПРОДАКШЕНЕ!
+const DEV_MODE = true; // Поставьте false для продакшена
+const DEV_USER_ID = 123456789; // Замените на свой реальный Telegram ID для тестирования
+const DEV_USER_NAME = 'Тестовый Админ';
+
+if (DEV_MODE && userId === 0) {
+  userId = DEV_USER_ID;
+  userName = DEV_USER_NAME;
+  console.log('🚧 РЕЖИМ РАЗРАБОТКИ: Используется тестовый User ID:', userId);
+}
+
+// Проверяем, что приложение запущено в Telegram (только в продакшене)
+if (!DEV_MODE && (!window.Telegram?.WebApp || userId === 0)) {
+  document.body.innerHTML = `
+    <div style="display: flex; align-items: center; justify-content: center; height: 100vh; background: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <div style="text-align: center; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 400px;">
+        <div style="font-size: 60px; margin-bottom: 20px;">🚫</div>
+        <h2 style="color: #e74c3c; margin-bottom: 15px;">Доступ ограничен</h2>
+        <p style="color: #7f8c8d; line-height: 1.5;">Это приложение работает только в Telegram Mini App.</p>
+        <p style="color: #7f8c8d; line-height: 1.5; margin-top: 20px; font-size: 14px;">Откройте приложение через Telegram бота или веб-приложение.</p>
+      </div>
+    </div>
+  `;
+  throw new Error('Приложение должно работать только в Telegram');
+}
 
 let isAdmin = false;
 let isBlocked = false;
@@ -563,6 +589,12 @@ function formatDate(dateStr) {
 
 // Клик по карте для добавления точки
 map.on('click', function(e) {
+  // Дополнительная проверка Telegram ID (кроме режима разработки)
+  if (!DEV_MODE && (!userId || userId === 0)) {
+    alert('Ошибка: Приложение должно работать только в Telegram!');
+    return;
+  }
+  
   if (isBlocked) {
     alert('Ваш аккаунт заблокирован!');
     return;
@@ -615,6 +647,12 @@ document.getElementById('treeModal').addEventListener('click', function(e) {
 });
 
 function addPoint(lat, lng, type, comment) {
+  // Дополнительная проверка перед отправкой (кроме режима разработки)
+  if (!DEV_MODE && (!userId || userId === 0)) {
+    alert('Ошибка: Неверный Telegram ID!');
+    return;
+  }
+  
   showLoading(); // Показываем загрузку
   
   try {
