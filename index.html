@@ -124,13 +124,13 @@
     }
     
     .tree-option.dead {
-      border-color: #f39c12;
+      border-color: #2c3e50;
     }
     
     .tree-option.dead:hover {
-      border-color: #d68910;
-      background: #fef9e7;
-      box-shadow: 0 5px 15px rgba(243, 156, 18, 0.2);
+      border-color: #1a252f;
+      background: #f8f9fa;
+      box-shadow: 0 5px 15px rgba(44, 62, 80, 0.2);
     }
     
     .option-emoji {
@@ -203,6 +203,12 @@
     .popup-btn.user-delete {
       background: #e67e22;
       color: white;
+    }
+    .popup-btn.infected {
+      background: #e74c3c;
+    }
+    .popup-btn.dry {
+      background: #2c3e50;
     }
 
     .status-legend {
@@ -357,7 +363,12 @@
   
   <div class="legend-item">
     <div class="legend-color" style="background: #FF0000;"></div>
-    <span>Подтверждено</span>
+    <span>Заражено</span>
+  </div>
+  
+  <div class="legend-item">
+    <div class="legend-color" style="background: #2c3e50;"></div>
+    <span>Засохло</span>
   </div>
   
   <div class="legend-item">
@@ -514,7 +525,7 @@ function loadData() {
         }
       });
     })
-    .    then(data => {
+    .then(data => {
       isAdmin = data.isAdmin;
       isBlocked = data.isBlocked;
       
@@ -573,8 +584,15 @@ function displayPoints(points) {
       // Кнопки для администратора (админ имеет полные права)
       if (isAdmin) {
         console.log(`Adding admin buttons for point ${pt.id}`);
-        popupContent += `<button class="popup-btn success" onclick="updateStatus(${pt.id}, 'Подтверждено')">✓ Подтвердить</button>
-        <button class="popup-btn" onclick="updateStatus(${pt.id}, 'Обработано')">🔧 Обработано</button><br/>
+        
+        // Определяем тип дерева для правильных кнопок подтверждения
+        if (pt.type === 'Заражённое дерево') {
+          popupContent += `<button class="popup-btn infected" onclick="updateStatus(${pt.id}, 'Заражено')">🦠 Заражено</button>`;
+        } else if (pt.type === 'Засохшее дерево') {
+          popupContent += `<button class="popup-btn dry" onclick="updateStatus(${pt.id}, 'Засохло')">🍂 Засохло</button>`;
+        }
+        
+        popupContent += `<button class="popup-btn" onclick="updateStatus(${pt.id}, 'Обработано')">🔧 Обработано</button><br/>
         <button class="popup-btn danger" onclick="deletePoint(${pt.id})">🗑 Удалить</button>
         <button class="popup-btn warning" onclick="blockUser(${pt.user_id}, '${pt.user_name}')">🚫 Заблокировать</button>`;
       }
@@ -592,10 +610,11 @@ function displayPoints(points) {
 
 function getColor(status) {
   switch(status) {
-    case 'Подозрение': return '#FFA500';
-    case 'Подтверждено': return '#FF0000';
-    case 'Обработано': return '#00AA00';
-    default: return '#808080';
+    case 'Подозрение': return '#FFA500';      // Оранжевый
+    case 'Заражено': return '#FF0000';        // Красный (переименовано с "Подтверждено")
+    case 'Засохло': return '#2c3e50';         // Черный (новый статус)
+    case 'Обработано': return '#00AA00';      // Зеленый
+    default: return '#808080';                // Серый (на всякий случай)
   }
 }
 
@@ -759,390 +778,4 @@ function tryGetMethod(lat, lng, type, comment) {
         alert(`🎉 Спасибо! Отметка "${type}" добавлена. ID: ${result.id}`);
         setTimeout(() => loadData(), 1000);
       } else {
-        alert('Ошибка GET: ' + (result.error || 'Неизвестная ошибка'));
-      }
-    } catch (e) {
-      alert('Ошибка парсинга GET ответа');
-    }
-  })
-  .catch(error => {
-    hideLoading();
-    alert('GET тоже не работает: ' + error.message);
-  });
-}
-
-// Новая функция для удаления собственной отметки
-function deleteOwnPoint(id) {
-  if (!confirm('Вы уверены, что хотите удалить свою отметку?')) {
-    return;
-  }
-  
-  const data = {
-    action: 'delete_own',
-    id: id,
-    user_id: userId // Передаем ID пользователя для проверки владения
-  };
-  
-  // Пробуем POST, если не работает - GET
-  fetch(API_URL, {
-    method: 'POST',
-    mode: 'cors',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify(data)
-  })
-  .then(response => {
-    return response.json();
-  })
-  .then(result => {
-    if (result.result === 'deleted') {
-      alert('Ваша отметка удалена!');
-      loadData();
-    } else if (result.error === 'not_owner') {
-      alert('Ошибка: Вы можете удалять только свои отметки!');
-    } else {
-      alert('Ошибка при удалении: ' + (result.error || 'Неизвестная ошибка'));
-    }
-  })
-  .catch(error => {
-    // Fallback на GET
-    const params = new URLSearchParams({
-      action: 'delete_own',
-      id: id,
-      user_id: userId
-    });
-    
-    fetch(API_URL + '?' + params.toString(), {
-      method: 'GET',
-      mode: 'cors'
-    })
-    .then(response => response.json())
-    .then(result => {
-      if (result.result === 'deleted') {
-        alert('Ваша отметка удалена!');
-        loadData();
-      } else if (result.error === 'not_owner') {
-        alert('Ошибка: Вы можете удалять только свои отметки!');
-      } else {
-        alert('Ошибка удаления: ' + (result.error || 'Неизвестная ошибка'));
-      }
-    })
-    .catch(err => {
-      alert('Ошибка удаления: ' + err.message);
-    });
-  });
-}
-
-function blockUser(targetUserId, userName) {
-  if (!isAdmin) {
-    alert('Недостаточно прав');
-    return;
-  }
-  
-  if (!confirm(`Вы уверены, что хотите заблокировать пользователя "${userName}"?\n\nОн больше не сможет добавлять отметки.`)) {
-    return;
-  }
-  
-  const data = {
-    action: 'block_user',
-    target_user_id: targetUserId
-  };
-  
-  // Пробуем POST, если не работает - GET
-  fetch(API_URL, {
-    method: 'POST',
-    mode: 'cors',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify(data)
-  })
-  .then(response => {
-    return response.json();
-  })
-  .then(result => {
-    if (result.result === 'blocked') {
-      alert(`Пользователь "${userName}" заблокирован!`);
-      loadData();
-    } else {
-      alert('Ошибка при блокировке: ' + (result.error || 'Неизвестная ошибка'));
-    }
-  })
-  .catch(error => {
-    // Fallback на GET
-    const params = new URLSearchParams({
-      action: 'block_user',
-      target_user_id: targetUserId
-    });
-    
-    fetch(API_URL + '?' + params.toString(), {
-      method: 'GET',
-      mode: 'cors'
-    })
-    .then(response => response.json())
-    .then(result => {
-      if (result.result === 'blocked') {
-        alert(`Пользователь "${userName}" заблокирован!`);
-        loadData();
-      } else {
-        alert('Ошибка блокировки: ' + (result.error || 'Неизвестная ошибка'));
-      }
-    })
-    .catch(err => {
-      alert('Ошибка блокировки: ' + err.message);
-    });
-  });
-}
-
-function updateStatus(id, status) {
-  if (!isAdmin) {
-    alert('Недостаточно прав');
-    return;
-  }
-  
-  const data = {
-    action: 'update',
-    id: id,
-    status: status
-  };
-  
-  // Пробуем POST, если не работает - GET
-  fetch(API_URL, {
-    method: 'POST',
-    mode: 'cors',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify(data)
-  })
-  .then(response => {
-    return response.json();
-  })
-  .then(result => {
-    if (result.result === 'updated') {
-      alert('Статус обновлён!');
-      loadData();
-    } else {
-      alert('Ошибка при обновлении: ' + (result.error || 'Неизвестная ошибка'));
-    }
-  })
-  .catch(error => {
-    // Fallback на GET
-    const params = new URLSearchParams({
-      action: 'update',
-      id: id,
-      status: status
-    });
-    
-    fetch(API_URL + '?' + params.toString(), {
-      method: 'GET',
-      mode: 'cors'
-    })
-    .then(response => response.json())
-    .then(result => {
-      if (result.result === 'updated') {
-        alert('Статус обновлён!');
-        loadData();
-      } else {
-        alert('Ошибка обновления: ' + (result.error || 'Неизвестная ошибка'));
-      }
-    })
-    .catch(err => {
-      alert('Ошибка обновления: ' + err.message);
-    });
-  });
-}
-
-function deletePoint(id) {
-  if (!isAdmin) {
-    alert('Недостаточно прав');
-    return;
-  }
-  
-  if (!confirm('Вы уверены, что хотите удалить эту отметку?')) return;
-  
-  const data = {
-    action: 'delete',
-    id: id
-  };
-  
-  // Пробуем POST, если не работает - GET
-  fetch(API_URL, {
-    method: 'POST',
-    mode: 'cors',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify(data)
-  })
-  .then(response => {
-    return response.json();
-  })
-  .then(result => {
-    if (result.result === 'deleted') {
-      alert('Отметка удалена!');
-      loadData();
-    } else {
-      alert('Ошибка при удалении: ' + (result.error || 'Неизвестная ошибка'));
-    }
-  })
-  .catch(error => {
-    // Fallback на GET
-    const params = new URLSearchParams({
-      action: 'delete',
-      id: id
-    });
-    
-    fetch(API_URL + '?' + params.toString(), {
-      method: 'GET',
-      mode: 'cors'
-    })
-    .then(response => response.json())
-    .then(result => {
-      if (result.result === 'deleted') {
-        alert('Отметка удалена!');
-        loadData();
-      } else {
-        alert('Ошибка удаления: ' + (result.error || 'Неизвестная ошибка'));
-      }
-    })
-    .catch(err => {
-      alert('Ошибка удаления: ' + err.message);
-    });
-  });
-}
-
-// Обновление данных каждые 30 секунд
-setInterval(loadData, 30000);
-</script>
-
-</body>
-</html>error || 'Неизвестная ошибка'));
-    }
-  })
-  .catch(error => {
-    // Fallback на GET
-    const params = new URLSearchParams({
-      action: 'delete_own',
-      id: id,
-      user_id: userId
-    });
-    
-    fetch(API_URL + '?' + params.toString(), {
-      method: 'GET',
-      mode: 'cors'
-    })
-    .then(response => response.json())
-    .then(result => {
-      if (result.result === 'deleted') {
-        alert('Ваша отметка удалена!');
-        loadData();
-      } else if (result.error === 'not_owner') {
-        alert('Ошибка: Вы можете удалять только свои отметки!');
-      } else {
-        alert('Ошибка удаления: ' + (result.error || 'Неизвестная ошибка'));
-      }
-    })
-    .catch(err => {
-      alert('Ошибка удаления: ' + err.message);
-    });
-  });
-}
-
-function updateStatus(id, status) {
-  if (!isAdmin) {
-    alert('Недостаточно прав');
-    return;
-  }
-  
-  const data = {
-    action: 'update',
-    id: id,
-    status: status
-  };
-  
-  // Пробуем POST, если не работает - GET
-  fetch(API_URL, {
-    method: 'POST',
-    mode: 'cors',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify(data)
-  })
-  .then(response => {
-    return response.json();
-  })
-  .then(result => {
-    if (result.result === 'updated') {
-      alert('Статус обновлён!');
-      loadData();
-    } else {
-      alert('Ошибка при обновлении: ' + (result.error || 'Неизвестная ошибка'));
-    }
-  })
-  .catch(error => {
-    // Fallback на GET
-    const params = new URLSearchParams({
-      action: 'update',
-      id: id,
-      status: status
-    });
-    
-    fetch(API_URL + '?' + params.toString(), {
-      method: 'GET',
-      mode: 'cors'
-    })
-    .then(response => response.json())
-    .then(result => {
-      if (result.result === 'updated') {
-        alert('Статус обновлён!');
-        loadData();
-      } else {
-        alert('Ошибка обновления: ' + (result.error || 'Неизвестная ошибка'));
-      }
-    })
-    .catch(err => {
-      alert('Ошибка обновления: ' + err.message);
-    });
-  });
-}
-
-function deletePoint(id) {
-  if (!isAdmin) {
-    alert('Недостаточно прав');
-    return;
-  }
-  
-  if (!confirm('Вы уверены, что хотите удалить эту отметку?')) return;
-  
-  const data = {
-    action: 'delete',
-    id: id
-  };
-  
-  // Пробуем POST, если не работает - GET
-  fetch(API_URL, {
-    method: 'POST',
-    mode: 'cors',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify(data)
-  })
-  .then(response => {
-    return response.json();
-  })
-  .then(result => {
-    if (result.result === 'deleted') {
-      alert('Отметка удалена!');
-      loadData();
-    } else {
-      alert('Ошибка при удалении: ' + (result.
+        alert('
