@@ -124,13 +124,13 @@
     }
     
     .tree-option.dead {
-      border-color: #2c3e50;
+      border-color: #f39c12;
     }
     
     .tree-option.dead:hover {
-      border-color: #1a252f;
-      background: #f8f9fa;
-      box-shadow: 0 5px 15px rgba(44, 62, 80, 0.2);
+      border-color: #d68910;
+      background: #fef9e7;
+      box-shadow: 0 5px 15px rgba(243, 156, 18, 0.2);
     }
     
     .option-emoji {
@@ -203,12 +203,6 @@
     .popup-btn.user-delete {
       background: #e67e22;
       color: white;
-    }
-    .popup-btn.infected {
-      background: #e74c3c;
-    }
-    .popup-btn.dry {
-      background: #2c3e50;
     }
 
     .status-legend {
@@ -363,12 +357,7 @@
   
   <div class="legend-item">
     <div class="legend-color" style="background: #FF0000;"></div>
-    <span>Заражено</span>
-  </div>
-  
-  <div class="legend-item">
-    <div class="legend-color" style="background: #2c3e50;"></div>
-    <span>Засохло</span>
+    <span>Подтверждено</span>
   </div>
   
   <div class="legend-item">
@@ -414,6 +403,367 @@ if (DEV_MODE && userId === 0) {
     
     // Удаляем через 5 секунд
     setTimeout(() => devWarning.remove(), 5000);
+  });
+}
+
+// Проверяем, что приложение запущено в Telegram (только в продакшене)
+if (!DEV_MODE && (!window.Telegram?.WebApp || userId === 0)) {
+  document.body.innerHTML = `
+    <div style="display: flex; align-items: center; justify-content: center; height: 100vh; background: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <div style="text-align: center; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 400px;">
+        <div style="font-size: 60px; margin-bottom: 20px;">🚫</div>
+        <h2 style="color: #e74c3c; margin-bottom: 15px;">Доступ ограничен</h2>
+        <p style="color: #7f8c8d; line-height: 1.5;">Это приложение работает только в Telegram Mini App.</p>
+        <p style="color: #7f8c8d; line-height: 1.5; margin-top: 20px; font-size: 14px;">Откройте приложение через Telegram бота или веб-приложение.</p>
+      </div>
+    </div>
+  `;
+  throw new Error('Приложение должно работать только в Telegram');
+}
+
+let isAdmin = false;
+let isBlocked = false;
+let currentClickCoords = null;
+let loadingInterval = null;
+
+// Забавные сообщения для загрузки
+const loadingMessages = [
+  "Связываюсь с лесом...",
+  "Ищу указанное дерево...",
+  "Зову дендрологов...",
+  "Консультируюсь с белками...",
+  "Проверяю состояние корней...",
+  "Считаю годичные кольца...",
+  "Спрашиваю у дятлов...",
+  "Анализирую листву...",
+  "Общаюсь с лесничим...",
+  "Записываю в лесную книгу...",
+  "Уведомляю лесных духов...",
+  "Проверяю базу данных природы..."
+];
+
+function showLoading() {
+  const overlay = document.getElementById('loadingOverlay');
+  const textElement = document.getElementById('loadingText');
+  
+  overlay.classList.add('show');
+  
+  // Показываем первое случайное сообщение
+  let currentMessage = Math.floor(Math.random() * loadingMessages.length);
+  textElement.textContent = loadingMessages[currentMessage];
+  
+  // Меняем сообщения каждые 1.5 секунды на случайные
+  loadingInterval = setInterval(() => {
+    let newMessage;
+    // Убеждаемся что новое сообщение отличается от текущего
+    do {
+      newMessage = Math.floor(Math.random() * loadingMessages.length);
+    } while (newMessage === currentMessage && loadingMessages.length > 1);
+    
+    currentMessage = newMessage;
+    textElement.textContent = loadingMessages[currentMessage];
+  }, 1500);
+}
+
+function hideLoading() {
+  const overlay = document.getElementById('loadingOverlay');
+  overlay.classList.remove('show');
+  
+  if (loadingInterval) {
+    clearInterval(loadingInterval);
+    loadingInterval = null;
+  }
+}
+
+// Настройка Telegram
+if (tg.ready) {
+  tg.ready();
+  tg.expand();
+}
+
+// Инициализация карты
+var map = L.map('map').setView([46.963983, 142.753996], 17);
+
+var bounds = L.latLngBounds(
+	L.latLng(46.969532, 142.744199),
+	L.latLng(46.960354, 142.764873)
+);
+
+map.setMaxBounds(bounds);
+map.on('drag', function() {
+  map.panInsideBounds(bounds, { animate: false });
+});
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '© OpenStreetMap'
+}).addTo(map);
+
+// Загрузка данных
+loadData();
+
+function loadData() {
+  fetch(API_URL + '?user_id=' + userId)
+    .then(response => {
+      return response.text().then(text => {
+        try {
+          const json = JSON.parse(text);
+          return json;
+        } catch (e) {
+          throw new Error(`Некорректный JSON от сервера: ${text.substring(0, 100)}...`);
+        }
+      });
+    })
+    .    then(data => {
+      isAdmin = data.isAdmin;
+      isBlocked = data.isBlocked;
+      
+      // Отладочная информация
+      console.log('User ID:', userId);
+      console.log('Is Admin:', isAdmin);
+      console.log('Is Blocked:', isBlocked);
+      
+      if (isBlocked) {
+        alert('Ваш аккаунт заблокирован администратором за нарушение правил.');
+        return;
+      }
+      
+      displayPoints(data.points || []);
+    })
+    .catch(error => {
+      console.error('Ошибка загрузки:', error);
+      alert('Ошибка загрузки данных: ' + error.message);
+    });
+}
+
+function displayPoints(points) {
+  // Очищаем маркеры
+  map.eachLayer(function(layer) {
+    if (layer instanceof L.CircleMarker) {
+      map.removeLayer(layer);
+    }
+  });
+  
+  points.forEach(pt => {
+    const color = getColor(pt.status);
+    const marker = L.circleMarker([pt.lat, pt.lng], {
+      color: color,
+      fillColor: color,
+      fillOpacity: 0.7,
+      radius: 8,
+      weight: 2
+    }).addTo(map);
+
+    let popupContent = `<div class="custom-popup">
+      <b>Тип:</b> ${pt.type}<br/>
+      <b>Комментарий (название дерева или иное):</b> ${pt.comment || 'Нет'}<br/>
+      <b>Статус:</b> ${pt.status}<br/>
+      <b>Дата:</b> ${formatDate(pt.date)}<br/>
+      <b>Пользователь:</b> ${pt.user_name || 'ID: ' + pt.user_id}<br/>`;
+
+    // Проверяем, является ли текущий пользователь автором отметки
+    const isOwner = pt.user_id == userId;
+
+    // Отладочная информация для каждой точки
+    console.log(`Point ${pt.id}: owner=${pt.user_id}, current=${userId}, isOwner=${isOwner}, isAdmin=${isAdmin}`);
+
+    if (isAdmin || isOwner) {
+      popupContent += `<hr style="margin: 8px 0;">`;
+      
+      // Кнопки для администратора (админ имеет полные права)
+      if (isAdmin) {
+        console.log(`Adding admin buttons for point ${pt.id}`);
+        popupContent += `<button class="popup-btn success" onclick="updateStatus(${pt.id}, 'Подтверждено')">✓ Подтвердить</button>
+        <button class="popup-btn" onclick="updateStatus(${pt.id}, 'Обработано')">🔧 Обработано</button><br/>
+        <button class="popup-btn danger" onclick="deletePoint(${pt.id})">🗑 Удалить</button>
+        <button class="popup-btn warning" onclick="blockUser(${pt.user_id}, '${pt.user_name}')">🚫 Заблокировать</button>`;
+      }
+      // Кнопки для обычного владельца отметки (если он не админ)
+      else if (isOwner) {
+        console.log(`Adding owner buttons for point ${pt.id}`);
+        popupContent += `<button class="popup-btn user-delete" onclick="deleteOwnPoint(${pt.id})">🗑 Удалить мою отметку</button>`;
+      }
+    }
+
+    popupContent += `</div>`;
+    marker.bindPopup(popupContent);
+  });
+}
+
+function getColor(status) {
+  switch(status) {
+    case 'Подозрение': return '#FFA500';
+    case 'Подтверждено': return '#FF0000';
+    case 'Обработано': return '#00AA00';
+    default: return '#808080';
+  }
+}
+
+function formatDate(dateStr) {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('ru-RU');
+}
+
+// Клик по карте для добавления точки
+map.on('click', function(e) {
+  // Дополнительная проверка Telegram ID (кроме режима разработки)
+  if (!DEV_MODE && (!userId || userId === 0)) {
+    alert('Ошибка: Приложение должно работать только в Telegram!');
+    return;
+  }
+  
+  if (isBlocked) {
+    alert('Ваш аккаунт заблокирован!');
+    return;
+  }
+  
+  if (!bounds.contains(e.latlng)) {
+    alert('Отметки можно ставить только в пределах парка!');
+    return;
+  }
+  
+  // Сохраняем координаты и показываем модальное окно
+  currentClickCoords = e.latlng;
+  showTreeModal();
+});
+
+function showTreeModal() {
+  document.getElementById('treeModal').classList.add('show');
+}
+
+function closeTreeModal() {
+  document.getElementById('treeModal').classList.remove('show');
+  currentClickCoords = null;
+}
+
+function selectTreeType(type) {
+  if (!currentClickCoords) {
+    alert('Ошибка: координаты не сохранены');
+    return;
+  }
+  
+  // Сохраняем координаты в переменные ДО закрытия модального окна
+  const lat = currentClickCoords.lat;
+  const lng = currentClickCoords.lng;
+  
+  // Закрываем модальное окно (это обнулит currentClickCoords)
+  closeTreeModal();
+  
+  // Запрашиваем комментарий
+  const comment = prompt(`Комментарий к "${type}" (необязательно):`, "") || "";
+  
+  // Добавляем точку с сохраненными координатами
+  addPoint(lat, lng, type, comment);
+}
+
+// Закрытие модального окна при клике вне его
+document.getElementById('treeModal').addEventListener('click', function(e) {
+  if (e.target === this) {
+    closeTreeModal();
+  }
+});
+
+function addPoint(lat, lng, type, comment) {
+  // Дополнительная проверка перед отправкой (кроме режима разработки)
+  if (!DEV_MODE && (!userId || userId === 0)) {
+    alert('Ошибка: Неверный Telegram ID!');
+    return;
+  }
+  
+  showLoading(); // Показываем загрузку
+  
+  try {
+    const data = {
+      action: 'add',
+      user_id: userId,
+      user_name: userName,
+      lat: lat,
+      lng: lng,
+      type: type,
+      comment: comment
+    };
+    
+    // Попробуем сначала POST
+    fetch(API_URL, {
+      method: 'POST',
+      mode: 'cors',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(data)
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      return response.text().then(text => {
+        try {
+          const json = JSON.parse(text);
+          return json;
+        } catch (e) {
+          throw new Error(`Сервер вернул некорректный JSON: ${text.substring(0, 100)}...`);
+        }
+      });
+    })
+    .then(result => {
+      hideLoading(); // Скрываем загрузку
+      
+      if (result.result === 'success') {
+        alert(`🎉 Спасибо! Отметка "${type}" добавлена. ID: ${result.id}`);
+        setTimeout(() => loadData(), 1000);
+      } else if (result.error) {
+        alert('Ошибка сервера: ' + result.error);
+      } else {
+        alert('Неожиданный ответ от сервера');
+      }
+    })
+    .catch(error => {
+      // Если POST не работает, попробуем через GET (но загрузку не убираем)
+      tryGetMethod(lat, lng, type, comment);
+    });
+    
+  } catch (error) {
+    hideLoading();
+    alert('Ошибка выполнения: ' + error.message);
+  }
+}
+
+function tryGetMethod(lat, lng, type, comment) {
+  const params = new URLSearchParams({
+    action: 'add',
+    user_id: userId,
+    user_name: userName,
+    lat: lat,
+    lng: lng,
+    type: type,
+    comment: comment
+  });
+  
+  const getUrl = API_URL + '?' + params.toString();
+  
+  fetch(getUrl, {
+    method: 'GET',
+    mode: 'cors'
+  })
+  .then(response => {
+    return response.text();
+  })
+  .then(text => {
+    hideLoading(); // Скрываем загрузку
+    
+    try {
+      const result = JSON.parse(text);
+      if (result.result === 'success') {
+        alert(`🎉 Спасибо! Отметка "${type}" добавлена. ID: ${result.id}`);
+        setTimeout(() => loadData(), 1000);
+      } else {
+        alert('Ошибка GET: ' + (result.error || 'Неизвестная ошибка'));
+      }
+    } catch (e) {
+      alert('Ошибка парсинга GET ответа');
+    }
   })
   .catch(error => {
     hideLoading();
@@ -672,373 +1022,127 @@ setInterval(loadData, 30000);
 </script>
 
 </body>
-</html>;
-}
-
-// Проверяем, что приложение запущено в Telegram (только в продакшене)
-if (!DEV_MODE && (!window.Telegram?.WebApp || userId === 0)) {
-  document.body.innerHTML = `
-    <div style="display: flex; align-items: center; justify-content: center; height: 100vh; background: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-      <div style="text-align: center; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 400px;">
-        <div style="font-size: 60px; margin-bottom: 20px;">🚫</div>
-        <h2 style="color: #e74c3c; margin-bottom: 15px;">Доступ ограничен</h2>
-        <p style="color: #7f8c8d; line-height: 1.5;">Это приложение работает только в Telegram Mini App.</p>
-        <p style="color: #7f8c8d; line-height: 1.5; margin-top: 20px; font-size: 14px;">Откройте приложение через Telegram бота или веб-приложение.</p>
-      </div>
-    </div>
-  `;
-  throw new Error('Приложение должно работать только в Telegram');
-}
-
-let isAdmin = false;
-let isBlocked = false;
-let currentClickCoords = null;
-let loadingInterval = null;
-
-// Забавные сообщения для загрузки
-const loadingMessages = [
-  "Связываюсь с лесом...",
-  "Ищу указанное дерево...",
-  "Зову дендрологов...",
-  "Консультируюсь с белками...",
-  "Проверяю состояние корней...",
-  "Считаю годичные кольца...",
-  "Спрашиваю у дятлов...",
-  "Анализирую листву...",
-  "Общаюсь с лесничим...",
-  "Записываю в лесную книгу...",
-  "Уведомляю лесных духов...",
-  "Проверяю базу данных природы..."
-];
-
-function showLoading() {
-  const overlay = document.getElementById('loadingOverlay');
-  const textElement = document.getElementById('loadingText');
-  
-  overlay.classList.add('show');
-  
-  // Показываем первое случайное сообщение
-  let currentMessage = Math.floor(Math.random() * loadingMessages.length);
-  textElement.textContent = loadingMessages[currentMessage];
-  
-  // Меняем сообщения каждые 1.5 секунды на случайные
-  loadingInterval = setInterval(() => {
-    let newMessage;
-    // Убеждаемся что новое сообщение отличается от текущего
-    do {
-      newMessage = Math.floor(Math.random() * loadingMessages.length);
-    } while (newMessage === currentMessage && loadingMessages.length > 1);
-    
-    currentMessage = newMessage;
-    textElement.textContent = loadingMessages[currentMessage];
-  }, 1500);
-}
-
-function hideLoading() {
-  const overlay = document.getElementById('loadingOverlay');
-  overlay.classList.remove('show');
-  
-  if (loadingInterval) {
-    clearInterval(loadingInterval);
-    loadingInterval = null;
-  }
-}
-
-// Настройка Telegram
-if (tg.ready) {
-  tg.ready();
-  tg.expand();
-}
-
-// Инициализация карты
-var map = L.map('map').setView([46.963983, 142.753996], 17);
-
-var bounds = L.latLngBounds(
-	L.latLng(46.969532, 142.744199),
-	L.latLng(46.960354, 142.764873)
-);
-
-map.setMaxBounds(bounds);
-map.on('drag', function() {
-  map.panInsideBounds(bounds, { animate: false });
-});
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '© OpenStreetMap'
-}).addTo(map);
-
-// Загрузка данных
-loadData();
-
-function loadData() {
-  fetch(API_URL + '?user_id=' + userId)
-    .then(response => {
-      return response.text().then(text => {
-        try {
-          const json = JSON.parse(text);
-          return json;
-        } catch (e) {
-          throw new Error(`Некорректный JSON от сервера: ${text.substring(0, 100)}...`);
-        }
-      });
-    })
-    .then(data => {
-      isAdmin = data.isAdmin;
-      isBlocked = data.isBlocked;
-      
-      // Отладочная информация
-      console.log('User ID:', userId);
-      console.log('Is Admin:', isAdmin);
-      console.log('Is Blocked:', isBlocked);
-      
-      if (isBlocked) {
-        alert('Ваш аккаунт заблокирован администратором за нарушение правил.');
-        return;
-      }
-      
-      displayPoints(data.points || []);
-    })
-    .catch(error => {
-      console.error('Ошибка загрузки:', error);
-      alert('Ошибка загрузки данных: ' + error.message);
+</html>error || 'Неизвестная ошибка'));
+    }
+  })
+  .catch(error => {
+    // Fallback на GET
+    const params = new URLSearchParams({
+      action: 'delete_own',
+      id: id,
+      user_id: userId
     });
-}
-
-function displayPoints(points) {
-  // Очищаем маркеры
-  map.eachLayer(function(layer) {
-    if (layer instanceof L.CircleMarker) {
-      map.removeLayer(layer);
-    }
-  });
-  
-  points.forEach(pt => {
-    const color = getColor(pt.status);
-    const marker = L.circleMarker([pt.lat, pt.lng], {
-      color: color,
-      fillColor: color,
-      fillOpacity: 0.7,
-      radius: 8,
-      weight: 2
-    }).addTo(map);
-
-    let popupContent = `<div class="custom-popup">
-      <b>Тип:</b> ${pt.type}<br/>
-      <b>Комментарий (название дерева или иное):</b> ${pt.comment || 'Нет'}<br/>
-      <b>Статус:</b> ${pt.status}<br/>
-      <b>Дата:</b> ${formatDate(pt.date)}<br/>
-      <b>Пользователь:</b> ${pt.user_name || 'ID: ' + pt.user_id}<br/>`;
-
-    // Проверяем, является ли текущий пользователь автором отметки
-    const isOwner = pt.user_id == userId;
-
-    // Отладочная информация для каждой точки
-    console.log(`Point ${pt.id}: owner=${pt.user_id}, current=${userId}, isOwner=${isOwner}, isAdmin=${isAdmin}`);
-
-    if (isAdmin || isOwner) {
-      popupContent += `<hr style="margin: 8px 0;">`;
-      
-      // Кнопки для администратора (админ имеет полные права)
-      if (isAdmin) {
-        console.log(`Adding admin buttons for point ${pt.id}`);
-        
-        // Определяем тип дерева для правильных кнопок подтверждения
-        if (pt.type === 'Заражённое дерево') {
-          popupContent += `<button class="popup-btn infected" onclick="updateStatus(${pt.id}, 'Заражено')">🦠 Заражено</button>`;
-        } else if (pt.type === 'Засохшее дерево') {
-          popupContent += `<button class="popup-btn dry" onclick="updateStatus(${pt.id}, 'Засохло')">🍂 Засохло</button>`;
-        }
-        
-        popupContent += `<button class="popup-btn" onclick="updateStatus(${pt.id}, 'Обработано')">🔧 Обработано</button><br/>
-        <button class="popup-btn danger" onclick="deletePoint(${pt.id})">🗑 Удалить</button>
-        <button class="popup-btn warning" onclick="blockUser(${pt.user_id}, '${pt.user_name}')">🚫 Заблокировать</button>`;
-      }
-      // Кнопки для обычного владельца отметки (если он не админ)
-      else if (isOwner) {
-        console.log(`Adding owner buttons for point ${pt.id}`);
-        popupContent += `<button class="popup-btn user-delete" onclick="deleteOwnPoint(${pt.id})">🗑 Удалить мою отметку</button>`;
-      }
-    }
-
-    popupContent += `</div>`;
-    marker.bindPopup(popupContent);
-  });
-}
-
-function getColor(status) {
-  switch(status) {
-    case 'Подозрение': return '#FFA500';      // Оранжевый
-    case 'Заражено': return '#FF0000';        // Красный (переименовано с "Подтверждено")
-    case 'Засохло': return '#2c3e50';         // Черный (новый статус)
-    case 'Обработано': return '#00AA00';      // Зеленый
-    default: return '#808080';                // Серый (на всякий случай)
-  }
-}
-
-function formatDate(dateStr) {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('ru-RU');
-}
-
-// Клик по карте для добавления точки
-map.on('click', function(e) {
-  // Дополнительная проверка Telegram ID (кроме режима разработки)
-  if (!DEV_MODE && (!userId || userId === 0)) {
-    alert('Ошибка: Приложение должно работать только в Telegram!');
-    return;
-  }
-  
-  if (isBlocked) {
-    alert('Ваш аккаунт заблокирован!');
-    return;
-  }
-  
-  if (!bounds.contains(e.latlng)) {
-    alert('Отметки можно ставить только в пределах парка!');
-    return;
-  }
-  
-  // Сохраняем координаты и показываем модальное окно
-  currentClickCoords = e.latlng;
-  showTreeModal();
-});
-
-function showTreeModal() {
-  document.getElementById('treeModal').classList.add('show');
-}
-
-function closeTreeModal() {
-  document.getElementById('treeModal').classList.remove('show');
-  currentClickCoords = null;
-}
-
-function selectTreeType(type) {
-  if (!currentClickCoords) {
-    alert('Ошибка: координаты не сохранены');
-    return;
-  }
-  
-  // Сохраняем координаты в переменные ДО закрытия модального окна
-  const lat = currentClickCoords.lat;
-  const lng = currentClickCoords.lng;
-  
-  // Закрываем модальное окно (это обнулит currentClickCoords)
-  closeTreeModal();
-  
-  // Запрашиваем комментарий
-  const comment = prompt(`Комментарий к "${type}" (необязательно):`, "") || "";
-  
-  // Добавляем точку с сохраненными координатами
-  addPoint(lat, lng, type, comment);
-}
-
-// Закрытие модального окна при клике вне его
-document.getElementById('treeModal').addEventListener('click', function(e) {
-  if (e.target === this) {
-    closeTreeModal();
-  }
-});
-
-function addPoint(lat, lng, type, comment) {
-  // Дополнительная проверка перед отправкой (кроме режима разработки)
-  if (!DEV_MODE && (!userId || userId === 0)) {
-    alert('Ошибка: Неверный Telegram ID!');
-    return;
-  }
-  
-  showLoading(); // Показываем загрузку
-  
-  try {
-    const data = {
-      action: 'add',
-      user_id: userId,
-      user_name: userName,
-      lat: lat,
-      lng: lng,
-      type: type,
-      comment: comment
-    };
     
-    // Попробуем сначала POST
-    fetch(API_URL, {
-      method: 'POST',
-      mode: 'cors',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(data)
+    fetch(API_URL + '?' + params.toString(), {
+      method: 'GET',
+      mode: 'cors'
     })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      return response.text().then(text => {
-        try {
-          const json = JSON.parse(text);
-          return json;
-        } catch (e) {
-          throw new Error(`Сервер вернул некорректный JSON: ${text.substring(0, 100)}...`);
-        }
-      });
-    })
+    .then(response => response.json())
     .then(result => {
-      hideLoading(); // Скрываем загрузку
-      
-      if (result.result === 'success') {
-        alert(`🎉 Спасибо! Отметка "${type}" добавлена. ID: ${result.id}`);
-        setTimeout(() => loadData(), 1000);
-      } else if (result.error) {
-        alert('Ошибка сервера: ' + result.error);
+      if (result.result === 'deleted') {
+        alert('Ваша отметка удалена!');
+        loadData();
+      } else if (result.error === 'not_owner') {
+        alert('Ошибка: Вы можете удалять только свои отметки!');
       } else {
-        alert('Неожиданный ответ от сервера');
+        alert('Ошибка удаления: ' + (result.error || 'Неизвестная ошибка'));
       }
     })
-    .catch(error => {
-      // Если POST не работает, попробуем через GET (но загрузку не убираем)
-      tryGetMethod(lat, lng, type, comment);
+    .catch(err => {
+      alert('Ошибка удаления: ' + err.message);
     });
-    
-  } catch (error) {
-    hideLoading();
-    alert('Ошибка выполнения: ' + error.message);
-  }
+  });
 }
 
-function tryGetMethod(lat, lng, type, comment) {
-  const params = new URLSearchParams({
-    action: 'add',
-    user_id: userId,
-    user_name: userName,
-    lat: lat,
-    lng: lng,
-    type: type,
-    comment: comment
-  });
+function updateStatus(id, status) {
+  if (!isAdmin) {
+    alert('Недостаточно прав');
+    return;
+  }
   
-  const getUrl = API_URL + '?' + params.toString();
+  const data = {
+    action: 'update',
+    id: id,
+    status: status
+  };
   
-  fetch(getUrl, {
-    method: 'GET',
-    mode: 'cors'
+  // Пробуем POST, если не работает - GET
+  fetch(API_URL, {
+    method: 'POST',
+    mode: 'cors',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify(data)
   })
   .then(response => {
-    return response.text();
+    return response.json();
   })
-  .then(text => {
-    hideLoading(); // Скрываем загрузку
-    
-    try {
-      const result = JSON.parse(text);
-      if (result.result === 'success') {
-        alert(`🎉 Спасибо! Отметка "${type}" добавлена. ID: ${result.id}`);
-        setTimeout(() => loadData(), 1000);
-      } else {
-        alert('Ошибка GET: ' + (result.error || 'Неизвестная ошибка'));
-      }
-    } catch (e) {
-      alert('Ошибка парсинга GET ответа');
+  .then(result => {
+    if (result.result === 'updated') {
+      alert('Статус обновлён!');
+      loadData();
+    } else {
+      alert('Ошибка при обновлении: ' + (result.error || 'Неизвестная ошибка'));
     }
   })
+  .catch(error => {
+    // Fallback на GET
+    const params = new URLSearchParams({
+      action: 'update',
+      id: id,
+      status: status
+    });
+    
+    fetch(API_URL + '?' + params.toString(), {
+      method: 'GET',
+      mode: 'cors'
+    })
+    .then(response => response.json())
+    .then(result => {
+      if (result.result === 'updated') {
+        alert('Статус обновлён!');
+        loadData();
+      } else {
+        alert('Ошибка обновления: ' + (result.error || 'Неизвестная ошибка'));
+      }
+    })
+    .catch(err => {
+      alert('Ошибка обновления: ' + err.message);
+    });
+  });
+}
+
+function deletePoint(id) {
+  if (!isAdmin) {
+    alert('Недостаточно прав');
+    return;
+  }
+  
+  if (!confirm('Вы уверены, что хотите удалить эту отметку?')) return;
+  
+  const data = {
+    action: 'delete',
+    id: id
+  };
+  
+  // Пробуем POST, если не работает - GET
+  fetch(API_URL, {
+    method: 'POST',
+    mode: 'cors',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify(data)
+  })
+  .then(response => {
+    return response.json();
+  })
+  .then(result => {
+    if (result.result === 'deleted') {
+      alert('Отметка удалена!');
+      loadData();
+    } else {
+      alert('Ошибка при удалении: ' + (result.
