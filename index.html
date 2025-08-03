@@ -357,7 +357,12 @@
   
   <div class="legend-item">
     <div class="legend-color" style="background: #FF0000;"></div>
-    <span>Подтверждено</span>
+    <span>Заражено</span>
+  </div>
+  
+  <div class="legend-item">
+    <div class="legend-color" style="background: #000000;"></div>
+    <span>Высохло</span>
   </div>
   
   <div class="legend-item">
@@ -572,11 +577,19 @@ function displayPoints(points) {
       
       // Кнопки для администратора (админ имеет полные права)
       if (isAdmin) {
-        console.log(`Adding admin buttons for point ${pt.id}`);
-        popupContent += `<button class="popup-btn success" onclick="updateStatus(${pt.id}, 'Подтверждено')">✓ Подтвердить</button>
-        <button class="popup-btn" onclick="updateStatus(${pt.id}, 'Обработано')">🔧 Обработано</button><br/>
-        <button class="popup-btn danger" onclick="deletePoint(${pt.id})">🗑 Удалить</button>
-        <button class="popup-btn warning" onclick="blockUser(${pt.user_id}, '${pt.user_name}')">🚫 Заблокировать</button>`;
+      console.log(`Adding admin buttons for point ${pt.id}`);
+	  
+      // Для заражённых деревьев - кнопка "Заражено"
+      if (pt.type === 'Заражённое дерево') {
+	popupContent += `<button class="popup-btn success" onclick="updateStatus(${pt.id}, 'Заражено')">🦠 Заражено</button>`;
+      }
+      // Для засохших деревьев - кнопка "Высохло"  
+      else if (pt.type === 'Засохшее дерево') {
+        popupContent += `<button class="popup-btn success" onclick="updateStatus(${pt.id}, 'Высохло')">🍂 Высохло</button>`;
+      }
+       popupContent += `<button class="popup-btn" onclick="updateStatus(${pt.id}, 'Обработано')">🔧 Обработано</button><br/>
+       <button class="popup-btn danger" onclick="deletePoint(${pt.id})">🗑 Удалить</button>
+       <button class="popup-btn warning" onclick="blockUser(${pt.user_id}, '${pt.user_name}')">🚫 Заблокировать</button>`;
       }
       // Кнопки для обычного владельца отметки (если он не админ)
       else if (isOwner) {
@@ -593,7 +606,8 @@ function displayPoints(points) {
 function getColor(status) {
   switch(status) {
     case 'Подозрение': return '#FFA500';
-    case 'Подтверждено': return '#FF0000';
+    case 'Заражено': return '#FF0000';
+    case 'Высохло': return '#000000';
     case 'Обработано': return '#00AA00';
     default: return '#808080';
   }
@@ -956,7 +970,7 @@ function updateStatus(id, status) {
     });
   });
 }
-
+	
 function deletePoint(id) {
   if (!isAdmin) {
     alert('Недостаточно прав');
@@ -1146,3 +1160,4 @@ function deletePoint(id) {
       loadData();
     } else {
       alert('Ошибка при удалении: ' + (result.
+
